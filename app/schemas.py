@@ -1,7 +1,7 @@
 """Pydantic models for the FirstAssessment contract.
 
 `FirstAssessment` is a *contract*, not a domain model: it must serialise to
-exactly the JSON the Stance Health clinician frontend consumes -- same keys,
+exactly the JSON the Stance Health clinician frontend consumes: same keys,
 same nesting, same types. Three rules from the brief drive every choice here.
 
 1. **No extra fields, no renamed keys.** ``extra="forbid"`` on every model
@@ -17,7 +17,8 @@ aliases, a plain ``model_dump()`` silently emits snake_case and only
 ``model_dump(by_alias=True)`` is correct. One forgotten flag anywhere in the
 pipeline writes a wrong-shaped document. Declaring the fields in camelCase
 makes the correct output the *only* possible output, at the cost of some
-non-PEP8 attribute names -- a trade worth making for an exact-match contract.
+non-PEP8 attribute names. That is a trade worth making for an exact-match
+contract.
 
 **Where provenance lives:** confidence, unresolved fields, transcript, ids and
 timestamps are all *extra fields* as far as the brief is concerned, so they are
@@ -52,7 +53,7 @@ SECTIONS: tuple[str, ...] = (
 # narrow enough not to drag in half the sentence.
 CONTEXT_WINDOW = 3
 
-# Below this, a word is not "heard poorly" -- it is a hole in the transcript.
+# Below this, a word is not "heard poorly". It is a hole in the transcript.
 # Ordinary speech dips to 0.5 or 0.6 constantly and that must not raise alarms,
 # so only genuinely destroyed audio next to a value drags the value down.
 GARBLED = 0.25
@@ -81,9 +82,9 @@ def _clean_str(value: Any) -> Any:
 
     Rather than trusting every producer to remember rule 3, we enforce it here.
     Numbers are stringified because a clinical value ("120", "45") frequently
-    comes back from the LLM as a JSON number. Anything structural -- a dict or
-    a list where a string belongs -- is a genuine shape error and is passed
-    through untouched so Pydantic rejects it.
+    comes back from the LLM as a JSON number. Anything structural (a dict or a
+    list where a string belongs) is a genuine shape error, and is passed through
+    untouched so Pydantic rejects it.
     """
     if value is None:
         return ""
@@ -107,6 +108,11 @@ def _clean_obj(value: Any) -> Any:
 def _bare(token: str) -> str:
     """Lowercase a token and drop the punctuation Whisper hangs off words."""
     return token.lower().strip(" .,;:!?-\"'()")
+
+
+def _bare_words(text: str) -> str:
+    """The same treatment applied to a whole span, empty tokens dropped."""
+    return " ".join(token for token in (_bare(w) for w in text.split()) if token)
 
 
 CleanStr = Annotated[str, BeforeValidator(_clean_str)]
@@ -188,7 +194,7 @@ class PatientAdvice(ContractModel):
 class FirstAssessment(ContractModel):
     """The exact JSON consumed by the clinician frontend. Nothing else.
 
-    Note that ``recommendation`` is singular but holds an array -- that is the
+    Note that ``recommendation`` is singular but holds an array. That is the
     frontend's spelling, and "fixing" it to ``recommendations`` would be a
     renamed key, which the brief forbids.
     """
@@ -217,7 +223,7 @@ class FirstAssessment(ContractModel):
 
 
 # --------------------------------------------------------------------------- #
-# Out-of-band provenance -- everything the contract has no room for
+# Out-of-band provenance: everything the contract has no room for
 # --------------------------------------------------------------------------- #
 class FieldEvidence(ContractModel):
     """Why we believe one extracted field, recorded per field rather than once.
@@ -226,21 +232,21 @@ class FieldEvidence(ContractModel):
     whole document cannot express the interesting failure:
 
     * **Whisper mishears.** "forty degrees" becomes "fourteen degrees". The
-      agent then extracts "fourteen" *correctly and confidently* -- it did its
+      agent then extracts "fourteen" *correctly and confidently*. It did its
       job on the text it was given, and the number is still wrong.
     * **The agent misreads correct text.** Puts the left-side measurement in
       ``right``, or invents a value that was never discussed.
 
     ``modelConfidence`` alone catches neither reliably, because self-reported
-    LLM confidence is poorly calibrated -- ask for thirty scores and you get
+    LLM confidence is poorly calibrated: ask for thirty scores and you get
     thirty 0.9s. So it is the weakest of the three signals here and is kept
     mainly for transparency. The two that carry real weight:
 
-    * ``evidenceFound`` -- we require the agent to quote the transcript span it
+    * ``evidenceFound``: we require the agent to quote the transcript span it
       took the value from, then verify that span really occurs in the
       transcript **in our own code**. A quote that is not there means the value
       was invented, and that is a mechanical check, not a judgement call.
-    * ``audioConfidence`` -- Whisper's own probability for the words in that
+    * ``audioConfidence``: Whisper's own probability for the words in that
       span. This is the only signal that sees the misheard-number case.
     """
 
@@ -250,7 +256,7 @@ class FieldEvidence(ContractModel):
     evidenceFound: bool = False  # verified by us against the transcript, not trusted
     modelConfidence: float = Field(default=0.0, ge=0.0, le=1.0)
     # None means "we could not locate the span", which is genuinely different
-    # from "Whisper was completely unsure" -- hence nullable here. The
+    # from "Whisper was completely unsure", hence nullable here. The
     # never-null rule is a property of the frontend contract, not of our own
     # diagnostics, where losing that distinction would hide a real failure.
     audioConfidence: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -266,7 +272,7 @@ class FieldEvidence(ContractModel):
         Grounding is a gate rather than a term: if the quoted span is not in the
         transcript, the value is unsupported no matter how sure the model says
         it is, so the score is zero. Past that gate we take the *minimum* of the
-        signals that actually reported, instead of an average or a product -- a
+        signals that actually reported, instead of an average or a product. A
         field is only as trustworthy as its weakest link, and multiplying would
         drag every score toward zero and make the threshold meaningless.
 
@@ -285,7 +291,7 @@ class FieldEvidence(ContractModel):
         # Context is a tripwire, not a term. Folding it into the minimum would
         # punish every value that happens to sit near an ordinary mumble, and
         # the resulting noise would bury the real warnings. It only bites when
-        # the audio beside the value is genuinely destroyed -- at which point
+        # the audio beside the value is genuinely destroyed, at which point
         # what the value *means* is in doubt, however cleanly it was quoted.
         if self.contextConfidence is not None and self.contextConfidence < GARBLED:
             return min(score, self.contextConfidence)
@@ -330,7 +336,7 @@ class ExtractionFlags(ContractModel):
         return bool(self.failedSections)
 
     def below(self, threshold: float) -> list[FieldEvidence]:
-        """Fields that fail the bar -- the body of the 422, field by field."""
+        """Fields that fail the bar: the body of the 422, field by field."""
         return [f for f in self.fields if f.confidence < threshold]
 
     def ungrounded(self) -> list[FieldEvidence]:
@@ -422,7 +428,7 @@ class TranscriptionResult(ContractModel):
         """Index ranges where `span` occurs in the flattened word list.
 
         Punctuation is stripped from both sides or nothing longer than a few
-        words ever matches -- the quote carries the commas, the word list does
+        words ever matches: the quote carries the commas, the word list does
         not.
         """
         needle = " ".join(span.lower().split())
@@ -447,11 +453,14 @@ class TranscriptionResult(ContractModel):
         if not words:
             # No word timestamps: fall back to whichever segment contains the
             # span. Coarser, but still local to the quote rather than global.
-            needle = " ".join(span.lower().split())
+            # Punctuation comes off both sides, as it does in `_locate`. The
+            # quote carries the commas and the segment text carries its own, so
+            # comparing them raw makes this miss spans the main path finds.
+            needle = _bare_words(span)
             hits = [
                 s.confidence
                 for s in self.segments
-                if needle and needle in " ".join(s.text.lower().split())
+                if needle and needle in _bare_words(s.text)
             ]
             return max(hits) if hits else None
 
@@ -472,12 +481,12 @@ class TranscriptionResult(ContractModel):
         problem. The recording says "compared with knee gig 5 degrees on the
         right", where the ruined word is almost certainly "negative". Asked for
         the shortest span that establishes the value, a model correctly quotes
-        "5 degrees on the right" -- every word of which Whisper heard at 93% or
+        "5 degrees on the right", every word of which Whisper heard at 93% or
         better. The quote passes, and the sign error is invisible.
 
         Widening the view by a few words catches that. Note this is *not* used
-        to grade every field -- a merely mediocre neighbour is normal speech.
-        It only bites when the audio nearby is genuinely destroyed; see
+        to grade every field, because a merely mediocre neighbour is normal
+        speech. It only bites when the audio nearby is genuinely destroyed; see
         `FieldEvidence.confidence`.
         """
         words = self._words()

@@ -2,7 +2,7 @@
  * Renders the review screen to a string and checks what came out.
  *
  * `vite build` proves every import resolves and every file parses. It does not
- * prove a component survives being given a real payload -- an assessment with
+ * prove a component survives being given a real payload. An assessment with
  * seven empty sections and a flag pointing into an array that has no rows is
  * exactly the shape that throws on the first render, and that shape is a normal
  * response from this API, not an edge case.
@@ -90,7 +90,7 @@ check("nothing is flagged", emptyHtml.includes("nothing flagged"));
 check("the worklist is absent", !emptyHtml.includes("Needs review"));
 
 /* ------------------------------------------------------------------ *
- * A flag pointing at a row that is not there -- the shape most likely
+ * A flag pointing at a row that is not there: the shape most likely
  * to throw, and reachable if a saved record is ever re-flagged.
  * ------------------------------------------------------------------ */
 console.log("\nA flag with no matching row does not bring the page down");

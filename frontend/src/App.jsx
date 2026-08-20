@@ -43,7 +43,7 @@ export default function App() {
         setReadOnly(false);
         setPhase("review");
       } catch (error) {
-        fail(`Could not parse that recording — ${error.message}`);
+        fail(`Could not parse that recording: ${error.message}`);
         setPhase("idle");
       }
     },
@@ -65,7 +65,7 @@ export default function App() {
       });
       setSaveState({ status: "saved", id: saved.id });
     } catch (error) {
-      fail(`Could not save — ${error.message}`);
+      fail(`Could not save: ${error.message}`);
       setSaveState({ status: "idle" });
     }
   }, [assessment, fail, filename, result]);
@@ -80,7 +80,7 @@ export default function App() {
         setPhase("review");
         setView("new");
       } catch (error) {
-        fail(`Could not open that assessment — ${error.message}`);
+        fail(`Could not open that assessment: ${error.message}`);
       }
     },
     [fail],

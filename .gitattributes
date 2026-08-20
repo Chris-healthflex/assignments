@@ -1,6 +1,6 @@
 # Line endings are pinned per file type rather than left to each developer's
 # core.autocrlf. Without this, a clone on a machine with autocrlf=true gets
-# run.sh with CRLF endings, and bash rejects it with "bad interpreter: ^M" --
+# run.sh with CRLF endings, and bash rejects it with "bad interpreter: ^M",
 # a failure whose message points nowhere near the cause.
 
 # Default: normalise to LF in the repository, convert on checkout as usual.

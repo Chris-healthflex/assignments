@@ -5,8 +5,8 @@ import { useAssessment } from "../../state/AssessmentContext";
 /**
  * Target dates get a plain text column rather than a date picker.
  *
- * The contract types them as strings, and the recording rarely states one --
- * "in about three months" is a real answer that no date input will hold. A
+ * The contract types them as strings, and the recording rarely states one.
+ * "In about three months" is a real answer that no date input will hold. A
  * picker would also invite someone to fill in a date the clinician never gave,
  * which is the specific thing this system exists to prevent.
  */

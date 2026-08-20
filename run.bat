@@ -62,8 +62,8 @@ REM --------------------------------------------------------------------------
 REM 2. Install dependencies.
 REM    Reinstalling every run means waiting for pip to resolve 30 packages when
 REM    nothing has changed. The stamp is a *copy* of requirements.txt, compared
-REM    byte for byte -- not a timestamp, because git checkout rewrites mtimes
-REM    and would make an unchanged file look newer than the stamp.
+REM    byte for byte rather than by timestamp, because git checkout rewrites
+REM    mtimes and would make an unchanged file look newer than the stamp.
 REM --------------------------------------------------------------------------
 set "NEEDS_INSTALL=1"
 if exist "%STAMP%" (

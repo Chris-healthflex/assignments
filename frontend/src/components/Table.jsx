@@ -6,7 +6,7 @@ import { useAssessment } from "../state/AssessmentContext";
  *
  * Most of the contract's arrays are records with the same handful of keys, and
  * a table is what those are: the column heading carries the label once instead
- * of repeating it on every row, and -- the part that matters clinically -- left
+ * of repeating it on every row, and, the part that matters clinically, left
  * and right sit in adjacent columns where an asymmetry is visible at a glance.
  *
  * Each section declares its own columns rather than this deriving them from the
@@ -42,7 +42,7 @@ export function Table({ columns, count, basePath }) {
                       label={column.label}
                       variant="cell"
                       multiline={column.multiline}
-                      placeholder={column.placeholder ?? "—"}
+                      placeholder={column.placeholder ?? "-"}
                     />
                   </td>
                 ))}

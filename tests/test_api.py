@@ -1,7 +1,7 @@
 """Tests for the HTTP layer.
 
 Whisper and Gemini are faked here on purpose. What these tests are about is the
-boundary -- status codes, the shape of the 422, upload limits, route ordering --
+boundary (status codes, the shape of the 422, upload limits, route ordering),
 and running the real model would make them slow, expensive and non-deterministic
 without testing any more of the code that lives in this file. The extraction
 itself has its own suite.
@@ -477,7 +477,7 @@ async def test_an_unavailable_section_is_a_422_even_when_the_rest_scored_well(
 
     An empty section is an ordinary, correct answer when the clinician did not
     mention it. When the call that produces it failed instead, the document
-    looks identical -- and the confidence score goes *up*, because it averages
+    looks identical, and the confidence score goes *up*, because it averages
     only the fields that came back. So the status code cannot be left to the
     score to decide.
     """

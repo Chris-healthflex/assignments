@@ -29,7 +29,7 @@ frontend/.vite/
 Thumbs.db
 
 # Derived transcripts and captured API responses. Both embed the transcript,
-# which is patient audio in text form -- never commit either.
+# which is patient audio in text form. Never commit either.
 transcript.txt
 last_api_response.json
 *assessment*.json

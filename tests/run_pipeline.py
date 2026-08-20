@@ -16,7 +16,7 @@ that proves the endpoints, the 422 and the persistence layer agree with each
 other rather than merely working alone.
 
 Exit codes: 0 if every stage passed, 1 if one failed. Low confidence is not a
-failure -- a 422 is the service working correctly -- but an extraction that
+failure, since a 422 is the service working correctly, but an extraction that
 produced nothing at all is, because that is indistinguishable from success.
 """
 
@@ -72,7 +72,7 @@ def _nulls(node: Any, path: str = "") -> list[str]:
 def check_contract(payload: dict[str, Any]) -> list[str]:
     """The brief's three hard rules, checked against the JSON actually produced.
 
-    Not against the model -- against the serialised document, because that is
+    Not against the model but against the serialised document, because that is
     what the frontend receives and the only thing the "exact match" promise is
     really about.
     """
@@ -107,7 +107,7 @@ def check_contract(payload: dict[str, Any]) -> list[str]:
     try:
         if FirstAssessment.model_validate(payload).model_dump(mode="json") != payload:
             problems.append("the document does not survive a re-validation unchanged")
-    except Exception as exc:  # noqa: BLE001 -- any failure here is a contract failure
+    except Exception as exc:  # noqa: BLE001 (any failure here is a contract failure)
         problems.append(f"the document does not validate against FirstAssessment: {exc}")
 
     return problems
@@ -183,7 +183,7 @@ async def run_direct(audio: Path | None, transcript_file: Path | None, save: boo
     # Without this check it would print as a clean success, which is the one
     # outcome this pipeline must never report.
     if not result.flags.fields and not any(_populated(payload).values()):
-        bad("nothing was extracted at all -- an empty result is not a successful run")
+        bad("nothing was extracted at all: an empty result is not a successful run")
         say("  check the log above for 429 / quota errors from the model provider")
         return 1, payload
 
@@ -242,7 +242,7 @@ async def persist_and_verify(stored: StoredAssessment, payload: dict[str, Any]) 
     stage(5, "MongoDB")
     try:
         if not await db.ping():
-            bad("no MongoDB at MONGODB_URI -- rerun with --no-save to skip persistence")
+            bad("no MongoDB at MONGODB_URI; rerun with --no-save to skip persistence")
             return 1
 
         await db.ensure_indexes()

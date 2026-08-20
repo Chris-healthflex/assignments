@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 
 // The build lands in app/static, which FastAPI mounts at /ui. Serving the UI
 // from the API's own origin is what lets the app call the endpoints with no
-// CORS configuration anywhere -- the browser never sees a cross-origin request.
+// CORS configuration anywhere: the browser never sees a cross-origin request.
 //
 // `base` has to match the mount point, or the built asset URLs come out
 // absolute from "/" and 404 behind the /ui prefix.

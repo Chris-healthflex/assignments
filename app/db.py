@@ -1,15 +1,15 @@
 """MongoDB persistence for stored assessments.
 
 Driver note: this uses ``pymongo.AsyncMongoClient`` rather than Motor. Motor is
-past end-of-life -- PyMongo absorbed the async API in 4.13 and Motor's final
-release was retired in May 2026 -- so starting a new project on it would mean
-shipping a dependency with no upstream. The API is near-identical; the only
+past end-of-life, because PyMongo absorbed the async API in 4.13 and Motor's
+final release was retired in May 2026, so starting a new project on it would
+mean shipping a dependency with no upstream. The API is near-identical; the only
 visible difference is the import.
 
 What goes in a document is deliberately the *envelope*, not the contract. A
 ``StoredAssessment`` carries the untouched ``FirstAssessment`` under one key and
 wraps ids, timestamps, transcript and confidence around it. Nothing in this
-module reaches inside ``assessment`` -- if it did, the exact-match guarantee
+module reaches inside ``assessment``. If it did, the exact-match guarantee
 would depend on the database round-trip preserving it, and that is a promise
 better kept by never touching it at all.
 """
@@ -45,7 +45,7 @@ def get_client() -> AsyncMongoClient:
 
     Constructing the client does not connect; the first operation does. That is
     why the URI being wrong shows up as a timeout on the first save rather than
-    at import, and why ``serverSelectionTimeoutMS`` is set short -- an
+    at import, and why ``serverSelectionTimeoutMS`` is set short: an
     unreachable Atlas cluster should fail the request in seconds, not hang the
     worker for the 30s default.
     """
@@ -70,7 +70,8 @@ def get_collection() -> AsyncCollection:
 
 
 async def ping() -> bool:
-    """Cheap liveness check. Never raises -- a health endpoint that 500s is useless."""
+    """Cheap liveness check. Never raises, because a health endpoint that 500s
+    is useless."""
     try:
         await get_client().admin.command("ping")
         return True
@@ -110,7 +111,7 @@ def to_document(stored: StoredAssessment) -> dict[str, Any]:
     ``id`` is dropped: Mongo owns it. Everything else dumps as-is, including
     ``createdAt`` as a real datetime rather than a string, so range queries can
     use it. Note that ``FieldEvidence.confidence`` is a computed property and so
-    is *not* written -- only the three raw signals are stored, and the score is
+    is *not* written. Only the three raw signals are stored, and the score is
     recomputed on read. Derived values in a database go stale the moment the
     scoring rule changes; the inputs do not.
     """
@@ -124,7 +125,7 @@ def from_document(doc: dict[str, Any]) -> StoredAssessment:
 
     Validation is strict (``extra="forbid"``): a document carrying keys the
     model does not know raises rather than quietly dropping them. That is the
-    behaviour we want -- silent divergence between what is stored and what is
+    behaviour we want: silent divergence between what is stored and what is
     served is the failure mode worth being loud about.
     """
     doc = dict(doc)
@@ -176,7 +177,7 @@ async def list_assessments(
 ) -> list[StoredAssessment]:
     """List assessments, newest first, optionally narrowed to one day.
 
-    The date filters ``createdAt`` -- the envelope's own timestamp. The
+    The date filters ``createdAt``, the envelope's own timestamp. The
     ``FirstAssessment`` contract has no date of its own (the only dates in it are
     the goal ``targetDate`` fields, which are targets, not records of when the
     assessment happened), so the time the assessment was captured is the only

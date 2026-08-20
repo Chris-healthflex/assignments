@@ -42,7 +42,7 @@ class TranscriptionError(RuntimeError):
 def _logprob_to_probability(avg_logprob: float | None) -> float:
     """Convert Whisper's average log-probability into a plain 0-1 probability.
 
-    faster-whisper reports segment quality as a mean log-probability -- a
+    faster-whisper reports segment quality as a mean log-probability: a
     negative number, typically around -0.15 for clean speech and below -1.0 for
     a bad patch. That is not comparable to anything else in the pipeline until
     it is exponentiated, and a raw -0.4 sitting in a field called "confidence"
@@ -82,7 +82,7 @@ def _read_cache(path: Path) -> TranscriptionResult | None:
         return None
     try:
         return TranscriptionResult.model_validate_json(path.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 -- a stale cache must never break a run
+    except Exception:  # noqa: BLE001 (a stale cache must never break a run)
         logger.warning("Ignoring unreadable transcript cache at %s", path)
         return None
 
@@ -122,7 +122,11 @@ def _to_segment(raw) -> TranscriptSegment:
             start=w.start,
             end=w.end,
             word=w.word,
-            confidence=max(0.0, min(1.0, w.probability)),
+            # `or 0.0` for the same reason as no_speech_prob below: a word
+            # with no probability attached is a signal we do not have, and a
+            # missing signal reads as zero, which the scoring rule treats as
+            # "not reported" rather than as certainty of being wrong.
+            confidence=max(0.0, min(1.0, getattr(w, "probability", 0.0) or 0.0)),
         )
         for w in (raw.words or [])
     ]

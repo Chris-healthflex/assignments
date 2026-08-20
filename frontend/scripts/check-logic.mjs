@@ -2,8 +2,8 @@
  * Checks for the parts of the UI that are logic rather than markup.
  *
  * The important one is `score`. The server does not serialise the combined
- * confidence -- it is a computed property there, so that changing the rule
- * cannot leave old saved records scored by the old one -- which means the rule
+ * confidence. It is a computed property there, so that changing the rule
+ * cannot leave old saved records scored by the old one, which means the rule
  * exists in two places. These assertions mirror the Python tests in
  * tests/test_schema.py case for case, so the two copies cannot drift quietly.
  *

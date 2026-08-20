@@ -1,11 +1,15 @@
 # First Assessment
 
-Turns a clinician–patient consultation recording into a structured
+Turns a clinician-patient consultation recording into a structured
 `FirstAssessment` document, stores it in MongoDB, and serves it over a REST API.
 
 Transcription runs locally with Whisper. Extraction runs through a LangGraph
 agent that must quote the transcript for every value it produces, and every
 quote is verified in our own code before the value is returned.
+
+**To run it:** `run.bat` on Windows or `./run.sh` on macOS and Linux. That builds
+the environment, verifies it, and starts the server. See
+[Quick start](#quick-start).
 
 ---
 
@@ -16,9 +20,9 @@ MongoDB Atlas cluster.**
 
 | # | Deliverable | Where |
 |---|---|---|
-| D1 | FastAPI service | [`app/main.py`](app/main.py) — 4 endpoints + `/health` |
-| D2 | Whisper transcription module | [`app/transcription.py`](app/transcription.py) — local, word-level, disk-cached |
-| D3 | LangGraph agent with Pydantic output | [`app/extraction.py`](app/extraction.py) — 3-node fan-out, grounding, repair loop |
+| D1 | FastAPI service | [`app/main.py`](app/main.py): 4 endpoints + `/health` |
+| D2 | Whisper transcription module | [`app/transcription.py`](app/transcription.py): local, word-level, disk-cached |
+| D3 | LangGraph agent with Pydantic output | [`app/extraction.py`](app/extraction.py): 3-node fan-out, grounding, repair loop |
 | D4 | MongoDB models, connection, save/retrieve | [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
 | D5 | Test script printing JSON | [`tests/run_pipeline.py`](tests/run_pipeline.py) |
 | D6 | README with setup and design decisions | this file |
@@ -47,7 +51,7 @@ ankle dorsiflexion     L 4.5   R 12    degrees
 ### What is verifiably true about the output
 
 - **The contract is exact.** Seven sections, in order, no extra keys, no renamed
-  keys, arrays that stay arrays, strings that are never null — checked against
+  keys, arrays that stay arrays, strings that are never null, checked against
   the serialised JSON on the wire, not against the model.
 - **Nothing is invented.** Every `targetDate` is `""`, because the recording
   states no dates. `objectiveGoals` and `patientAdvice` are empty, because the
@@ -55,7 +59,7 @@ ankle dorsiflexion     L 4.5   R 12    degrees
   here, and the system prefers it to a plausible guess.
 - **Low-confidence values are held back**, per field, with the reason and the
   evidence behind them.
-- **195 automated checks pass** — 137 Python tests (2 skip without a cached
+- **195 automated checks pass:** 137 Python tests (2 skip without a cached
   transcript) and 58 frontend checks.
 - **WAV, MP3 and M4A** were each transcoded from the same source and produced
   identical transcripts.
@@ -82,7 +86,7 @@ run.bat          # Windows
 
 That creates the virtual environment, installs the pins, checks the setup, and
 starts the server. Run it with no `.env` present and it copies the example, names
-the two values to fill in, and stops — rather than starting a server that will
+the two values to fill in, and stops, rather than starting a server that will
 fail on the first upload.
 
 Other modes:
@@ -124,10 +128,10 @@ python -m tests.run_pipeline clinical_assessment.wav > out.json
 
 **Three things to expect on a first run:**
 
-1. **Whisper downloads itself** — ~1.5 GB of model weights into
+1. **Whisper downloads itself.** ~1.5 GB of model weights into
    `~/.cache/huggingface/hub`, once. Nothing is committed to this repo.
    `run.bat warm` does this up front instead of mid-upload.
-2. **The first transcription takes minutes**, not seconds — roughly 3 minutes of
+2. **The first transcription takes minutes**, not seconds: roughly 3 minutes of
    CPU for the 105-second sample. The result is cached by content hash, so every
    run after that is instant.
 3. **Two tests skip** until you have transcribed something. They exercise the
@@ -135,7 +139,7 @@ python -m tests.run_pipeline clinical_assessment.wav > out.json
    fresh clone, not a failure.
 
 The audio file is **not** in this repository and `*.wav` is **not** in
-`.gitignore` — check `git status` before committing if you drop a recording in.
+`.gitignore`, so check `git status` before committing if you drop a recording in.
 
 ---
 
@@ -170,8 +174,8 @@ The audio file is **not** in this repository and `*.wav` is **not** in
 structured-output call, run in parallel.
 
 **Every value must cite its source.** The model returns each value together with
-a verbatim quote from the transcript. `ground()` — plain Python, no model
-involved — then checks that the quote actually appears in the transcript and
+a verbatim quote from the transcript. `ground()`, plain Python with no model
+involved, then checks that the quote actually appears in the transcript and
 looks up how confidently Whisper heard those exact words. **The model never gets
 a vote on whether its own output is trustworthy.**
 
@@ -186,7 +190,7 @@ The brief's three rules are enforced as code, not convention:
 
 | Rule | How it is enforced |
 |---|---|
-| No extra fields, no renamed keys | `extra="forbid"` on every model — a renamed key arrives as an unknown key and raises |
+| No extra fields, no renamed keys | `extra="forbid"` on every model; a renamed key arrives as an unknown key and raises |
 | Arrays stay arrays, even with one item | Every list defaults to `[]`; a `None` is normalised to `[]`, never dropped |
 | String fields are strings, never null | Every leaf is a `CleanStr`, which maps `None` → `""` at the boundary |
 
@@ -194,8 +198,8 @@ Two details worth naming:
 
 - **Field names are declared in camelCase literally**, not generated by
   `alias_generator=to_camel`. With aliases, a plain `model_dump()` silently emits
-  snake_case and only `model_dump(by_alias=True)` is correct — one forgotten flag
-  anywhere writes a wrong-shaped document. Declaring camelCase makes the correct
+  snake_case and only `model_dump(by_alias=True)` is correct, and one forgotten
+  flag anywhere writes a wrong-shaped document. Declaring camelCase makes the correct
   output the *only* possible output.
 - **`recommendation` is singular but holds an array.** That is the frontend's
   spelling. "Fixing" it would be a renamed key, which the brief forbids.
@@ -211,7 +215,7 @@ GET  /assessments?date=      YYYY-MM-DD       ->  that day's assessments
 
 All four speak one envelope: the untouched `FirstAssessment` under `assessment`,
 with transcript, confidence and identifiers wrapped around it. A wrapper is
-unavoidable — the brief forbids extra fields *inside* the contract and requires
+unavoidable: the brief forbids extra fields *inside* the contract and requires
 confidence to be returned *with* the result, so the confidence has to live
 outside it. Given that, one envelope used identically everywhere beats four
 different response shapes.
@@ -229,7 +233,7 @@ because the reasoning matters more than the result.
 **"left-to-be-all-condylo fracture"**. `medium` gives **"ankle dorsiflexion"** and
 **"tibial condyle fracture"**.
 
-The cost is real — 184 seconds versus 24 on CPU — but it is paid **once per
+The cost is real, 184 seconds versus 24 on CPU, but it is paid **once per
 recording**, because transcripts are cached by a hash of the audio bytes plus the
 decode settings. A mangled clinical term, by contrast, is paid on every read of
 that assessment forever.
@@ -239,14 +243,14 @@ that assessment forever.
 The first design scored the extraction as a whole. That hides exactly the case
 that matters: one destroyed measurement inside an otherwise clean assessment
 disappears into an average. Scoring every field independently is what makes the
-`422` specific enough to act on, and it reshaped the schema — evidence records,
-not a single number.
+`422` specific enough to act on, and it reshaped the schema into evidence
+records rather than a single number.
 
 ### Seven extraction nodes → three
 
 The first version had one node per section. That fired seven concurrent calls and
 exhausted a free-tier daily quota in three runs. Grouping into subjective /
-objective / plan cut it to three calls per extraction with no loss of focus — the
+objective / plan cut it to three calls per extraction with no loss of focus: the
 groups match what a clinician reasons about together.
 
 ### `gemini-2.5-flash` → `gemini-3.1-flash-lite`
@@ -254,19 +258,20 @@ groups match what a clinician reasons about together.
 The 2.5 and 3.7 flash tiers allow 5 requests/minute and a few dozen per day on
 the free tier, which two full runs exhaust. `flash-lite` has real headroom
 (15/min) and handled the citation discipline without difficulty. Client-side
-pacing was added alongside it, held one under the limit rather than at it — the
-limiter can pace what we send, but not the retries the SDK fires on its own.
+pacing was added alongside it, held one under the limit rather than at it,
+because the limiter can pace what we send but not the retries the SDK fires on
+its own.
 
 ### Scoring the quote → scoring the quote *and its neighbourhood*
 
 A live run exposed something worth recording. Told to "quote the shortest span
-that establishes the value", the model quoted `"5 degrees on the right"` — every
-word of which Whisper heard at 93% or better — stepping neatly over the 5% word
+that establishes the value", the model quoted `"5 degrees on the right"`, every
+word of which Whisper heard at 93% or better, stepping neatly over the 5% word
 beside it. **A perfectly well-behaved model had steered around the safety check.**
 
 The fix was a ±3-word window around every quote. That initially produced false
-alarms on misheard function words — a mangled "and" between two goals casts doubt
-on neither — so `CONTEXT_IGNORED` excludes them. A misheard "negative" before a
+alarms on misheard function words (a mangled "and" between two goals casts doubt
+on neither) so `CONTEXT_IGNORED` excludes them. A misheard "negative" before a
 measurement still counts.
 
 ### Motor → PyMongo's `AsyncMongoClient`
@@ -278,7 +283,7 @@ near-identical; the only visible difference is the import.
 ### A silent partial failure → `422`, and a total one → `502`
 
 The extraction makes three concurrent calls. When one failed, its sections came
-back empty — and an empty section normally means the clinician did not mention
+back empty, and an empty section normally means the clinician did not mention
 it, which is a *correct* answer. The two were indistinguishable in the finished
 document.
 
@@ -289,13 +294,13 @@ assessment silently missing.
 Three changes fixed it:
 
 1. **A group that returned nothing is now retried.** The repair loop originally
-   looked only at fields whose quotes did not check out — a failed call produced
+   looked only at fields whose quotes did not check out. A failed call produced
    no fields, so it was invisible to that loop and never asked again. A bad quote
    got two more chances; a dropped connection got none.
 2. **Surviving failures name the sections they cost**, in `flags.failedSections`,
    by contract section rather than internal group name.
 3. **The status code stopped lying.** A partial failure is a `422` carrying a
-   `section_unavailable` entry per lost section — *even when every field that did
+   `section_unavailable` entry per lost section, *even when every field that did
    return scored perfectly*. Total failure is a `502`: nothing was wrong with the
    request, and "try again" is the useful advice, not "fix your input".
 
@@ -311,18 +316,18 @@ Three changes fixed it:
   changes; the inputs do not.
 - **Saving does not re-apply the confidence gate.** The gate belongs where a
   *machine* produces values. `POST /assessments` receives what a human has
-  already reviewed — gating it would mean a clinician who corrected a misheard
+  already reviewed, and gating it would mean a clinician who corrected a misheard
   measurement could not save the correction.
 - **`?date=` filters the envelope's `createdAt`, in UTC.** `FirstAssessment` has
   no date of its own; its only dates are goal `targetDate` values, which are
   intentions rather than a record of when anything happened. The range is
-  half-open `[midnight, next midnight)` — BSON keeps milliseconds, so an
+  half-open `[midnight, next midnight)`, because BSON keeps milliseconds, so an
   inclusive upper bound genuinely drops documents.
 - **Slow work does not block the event loop.** `transcribe()` and `extract()` are
   synchronous and slow; both go through `run_in_threadpool`. Transcription
   additionally sits behind a semaphore, because faster-whisper holds one model in
   memory and is not safe to call from several threads at once. Extraction is
-  deliberately *not* serialised — it is network-bound and already paced.
+  deliberately *not* serialised: it is network-bound and already paced.
 
 ---
 
@@ -348,19 +353,19 @@ of how sure the model claims to be.
 reports a probability for every individual word; once we know which span a value
 came from, we can ask how clearly *those exact words* were heard.
 
-Without it there is only a per-segment average — which, on the sentence
+Without it there is only a per-segment average, which, on the sentence
 containing the misheard reading described under Problems, is a reassuring **0.90**.
 
 ### A gate and three scores per field
 
 | Signal | Source | Meaning |
 |---|---|---|
-| `evidenceFound` | our code | Does the quoted span actually exist in the transcript? A gate — false means zero. |
+| `evidenceFound` | our code | Does the quoted span actually exist in the transcript? A gate: false means zero. |
 | `audioConfidence` | Whisper | How confidently were *those exact words* heard? |
 | `modelConfidence` | the LLM | How sure the model says it is. The weakest, because it is self-reported. |
 | `contextConfidence` | Whisper | The worst word in a ±3-word window around the quote. |
 
-The combined score is the **weakest** reported signal — a value is only as
+The combined score is the **weakest** reported signal: a value is only as
 trustworthy as its shakiest evidence. `contextConfidence` bites only below 0.25,
 where a neighbouring word is not merely unclear but destroyed.
 
@@ -377,7 +382,7 @@ renders a form error can render these with no new code:
 ```json
 {
   "loc": ["assessment", "objectiveAssessment", "tests", 1, "right"],
-  "msg": "The recording is badly unclear next to this value (5% on a nearby word)…",
+  "msg": "The recording is badly unclear next to this value (5% on a nearby word)...",
   "type": "low_confidence",
   "ctx": { "value": "5", "confidence": 0.05, "audioConfidence": 0.93 }
 }
@@ -396,7 +401,7 @@ makes the test suite and the end-to-end script fast enough to run repeatedly.
 ### A review interface
 
 The confidence data is not much use if nobody can see it. `/ui/` is a React app
-([`frontend/`](frontend/)) served by the API itself from `app/static/` — same
+([`frontend/`](frontend/)) served by the API itself from `app/static/`, same
 origin, so there is no CORS configuration anywhere. **The built bundle is
 committed**, so a clone runs the UI with no `npm install`.
 
@@ -411,10 +416,11 @@ as an ordinary blank.
 
 ```bash
 pytest                    # 137 passed, 2 skipped
+run.bat test              # the same, without activating the venv first
 cd frontend && npm test   # 58 checks
 ```
 
-Python tests run with **no API key, no Whisper and no Mongo** — the model is
+Python tests run with **no API key, no Whisper and no Mongo**. The model is
 stubbed, because what needs proving is not "does Gemini work" but "does the
 grounding catch a model that lies". A stub is the only way to test the lying case
 deliberately. MongoDB integration tests skip when no server is reachable; mocking
@@ -430,7 +436,7 @@ the driver would only prove the mock behaves like the mock.
 | `test_the_contract_survives_the_round_trip_byte_for_byte` | Exact-match through save and load. |
 
 [`tests/run_pipeline.py`](tests/run_pipeline.py) is the end-to-end script. It
-checks the **serialised JSON**, not the model — exact keys in order, no nulls,
+checks the **serialised JSON**, not the model: exact keys in order, no nulls,
 arrays intact, and that re-validating the document reproduces it byte-identically.
 Narration goes to stderr and the contract JSON to stdout, so redirecting produces
 a clean document.
@@ -442,9 +448,14 @@ a clean document.
 Every setting has a working default except the two secrets. See
 [`.env.example`](.env.example).
 
+`run.bat check` (or `python -m app.doctor`) validates this configuration before
+the server starts: an unset key, an unreachable database or a half-finished
+install is reported as one line saying what to do, rather than as a traceback
+after Whisper has already spent three minutes transcribing.
+
 | Variable | Default | Notes |
 |---|---|---|
-| `GOOGLE_API_KEY` | — | Free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| `GOOGLE_API_KEY` | none | Free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | `MONGODB_URI` | `mongodb://localhost:27017` | Or an Atlas `mongodb+srv://` string |
 | `WHISPER_MODEL` | `medium` | `small` is 8× faster and mangles clinical terms |
 | `WHISPER_DEVICE` | `cpu` | `cuda` switches compute type to float16 automatically |
@@ -454,7 +465,7 @@ Every setting has a working default except the two secrets. See
 | `EXTRACTION_REQUESTS_PER_MINUTE` | `4` | Raise on a paid key |
 | `EXTRACTION_CONFIDENCE_THRESHOLD` | `0.6` | Below this, a field goes in the 422 |
 | `MAX_UPLOAD_MB` | `50` | ~2 hours of 16-bit mono WAV |
-| `MONGODB_TIMEOUT_MS` | `5000` | Short on purpose — fail the request, don't hang the worker |
+| `MONGODB_TIMEOUT_MS` | `5000` | Short on purpose: fail the request, don't hang the worker |
 
 Audio formats: **WAV, MP3, M4A**, plus FLAC, OGG and WebM. faster-whisper decodes
 through its bundled PyAV, so no separate ffmpeg install is needed.
@@ -468,7 +479,7 @@ through its bundled PyAV, so no separate ffmpeg install is needed.
 In the sample recording the clinician states the patient's right knee extension.
 Whisper transcribed it as:
 
-> …left knee extension of 20 degrees compared with **knee gig** 5 degrees on the right.
+> ...left knee extension of 20 degrees compared with **knee gig** 5 degrees on the right.
 
 "knee gig" is not a clinical term. Whisper's *segment-level* confidence for that
 sentence is a healthy **0.90**, and the extraction agent behaves impeccably: it
@@ -476,8 +487,8 @@ reads `5`, quotes the transcript exactly, and reports 95% confidence. Every chec
 that looks only at the model passes.
 
 But Whisper's **word-level** probability for the word before `5` is **0.05**. The
-clinician almost certainly said "negative 5 degrees" — the sign is inverted, and
-a −5° extension is a materially different clinical picture from +5°.
+clinician almost certainly said "negative 5 degrees", so the sign is inverted and
+a -5° extension is a materially different clinical picture from +5°.
 
 The service returns that field at **0.05** with a `422`:
 

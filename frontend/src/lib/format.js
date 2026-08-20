@@ -17,7 +17,7 @@ export function formatDateTime(iso) {
  *
  * Deliberately UTC and not local. `GET /assessments?date=` filters on a UTC day
  * because that is what the stored `createdAt` is, so a picker defaulting to the
- * local date disagrees with the service for part of every day -- at 00:44 in
+ * local date disagrees with the service for part of every day. At 00:44 in
  * UTC+5:30 the local date is already tomorrow while everything saved in the last
  * five hours is filed under today. Matching the server is the honest default;
  * the control is labelled UTC so the difference is visible rather than

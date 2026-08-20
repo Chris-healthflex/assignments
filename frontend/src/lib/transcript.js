@@ -4,7 +4,7 @@
  * The model quotes what it heard with its own punctuation; Whisper's transcript
  * punctuates independently. An exact search finds most of them, and the words
  * with anything between them finds the rest. A quote that matches neither is
- * reported as not found rather than approximated -- the server has already made
+ * reported as not found rather than approximated. The server has already made
  * the authoritative decision about whether the evidence exists, and guessing
  * harder here would only disagree with it on screen.
  */

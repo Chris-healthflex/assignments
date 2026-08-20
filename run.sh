@@ -54,9 +54,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # 2. Install dependencies.
-#    The stamp is a *copy* of requirements.txt, compared byte for byte -- not a
-#    timestamp, because git checkout rewrites mtimes and would make an unchanged
-#    file look newer than the stamp.
+#    The stamp is a *copy* of requirements.txt, compared byte for byte rather
+#    than by timestamp, because git checkout rewrites mtimes and would make an
+#    unchanged file look newer than the stamp.
 # ---------------------------------------------------------------------------
 if ! cmp -s requirements.txt "$STAMP" 2>/dev/null; then
     echo " [ .. ] Installing dependencies (a few minutes on a first run)"

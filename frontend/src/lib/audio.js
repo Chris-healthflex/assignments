@@ -3,7 +3,7 @@
  *
  * These mirror `AUDIO_SUFFIXES` in app/main.py. faster-whisper decodes through
  * the PyAV bindings it ships with, so mp3, m4a, flac and ogg need no ffmpeg
- * install of their own -- all three of wav, mp3 and m4a were verified to
+ * install of their own. All three of wav, mp3 and m4a were verified to
  * transcribe to identical text from the same source recording.
  *
  * Checking here as well as on the server is not duplication for its own sake:

@@ -47,7 +47,7 @@ export function FlagSummary({ detail }) {
             >
               <span className={`pill ${entry.severity}`}>{pct(entry.confidence)}</span>
               <span className="where">{describe(entry.path)}</span>
-              <span className="what">{entry.value || "—"}</span>
+              <span className="what">{entry.value || "-"}</span>
             </button>
           </li>
         ))}

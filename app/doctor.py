@@ -3,8 +3,8 @@
 Everything that can go wrong on a fresh clone goes wrong *late* by default. A
 missing API key surfaces after Whisper has spent three minutes transcribing; a
 paused Atlas cluster surfaces when the clinician clicks Save, having already
-reviewed the draft. Both are the same failure -- a precondition that nobody
-checked -- and both are cheap to catch up front.
+reviewed the draft. Both are the same failure, a precondition that nobody
+checked, and both are cheap to catch up front.
 
 So this runs the checks in ascending order of cost and stops at the first one
 that blocks, printing what to do about it rather than a traceback.
@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Values shipped in .env.example that mean "you have not filled this in yet".
 # Checking for emptiness alone is not enough: the example file has a working
 # localhost Mongo URI, which is a real answer for some people and a forgotten
-# placeholder for others -- but an empty GOOGLE_API_KEY is never intentional.
+# placeholder for others. An empty GOOGLE_API_KEY is never intentional.
 PLACEHOLDERS = {"", "your-key-here", "changeme", "<your-key>"}
 
 OK, WARN, BAD = "  OK  ", " WARN ", " FAIL "
@@ -116,8 +116,8 @@ def check_env_file() -> None:
         raise Blocked(
             "No .env existed, so .env.example was copied to .env.\n"
             "Open it and fill in two values before running again:\n"
-            "  GOOGLE_API_KEY  -- free key from https://aistudio.google.com/apikey\n"
-            "  MONGODB_URI     -- Atlas connection string, or a local mongod"
+            "  GOOGLE_API_KEY:  free key from https://aistudio.google.com/apikey\n"
+            "  MONGODB_URI:     Atlas connection string, or a local mongod"
         )
     raise Blocked("Neither .env nor .env.example exists. Is this the repository root?")
 
@@ -216,7 +216,7 @@ def warm_gemini(settings) -> None:
             temperature=0.0,
         )
         model.invoke("Reply with the single word: ready")
-    except Exception as exc:  # noqa: BLE001 -- any failure here is the same advice
+    except Exception as exc:  # noqa: BLE001 (any failure gets the same advice)
         raise Blocked(
             f"The Gemini key or model was rejected: {exc}\n"
             "Check GOOGLE_API_KEY, and that EXTRACTION_MODEL names a model your\n"
@@ -238,9 +238,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # The modules we call log their own failures with tracebacks -- correct in a
-    # server, wrong here, where a wall of pymongo internals buries the one line
-    # that says what to do. This screen is the error message.
+    # The modules we call log their own failures with tracebacks. That is correct
+    # in a server and wrong here, where a wall of pymongo internals buries the
+    # one line that says what to do. This screen is the error message.
     logging.disable(logging.WARNING)
 
     print("\nChecking setup\n" + "-" * 58)

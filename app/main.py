@@ -9,7 +9,7 @@ Four endpoints, matching the brief:
 
 Every one of them speaks ``StoredAssessment``: the untouched ``FirstAssessment``
 contract under ``assessment``, with transcript, confidence and identifiers
-wrapped around it. A wrapper is unavoidable -- the brief forbids extra fields
+wrapped around it. A wrapper is unavoidable: the brief forbids extra fields
 inside the contract *and* requires confidence to come back with the result, so
 the confidence has to live somewhere outside. Given that, one envelope used
 identically by all four endpoints beats four different response shapes.
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 # faster-whisper holds one model in memory and is not safe to call from several
 # threads at once. Transcription is also CPU-bound, so running two at a time
-# would not be faster anyway -- requests queue here rather than corrupt state.
+# would not be faster anyway, so requests queue here rather than corrupt state.
 # Extraction is deliberately *not* serialised: it is network-bound and already
 # paced by the rate limiter in `extraction._llm`.
 _TRANSCRIBE_LOCK = asyncio.Semaphore(1)
@@ -125,9 +125,9 @@ def _section_error(section: str) -> FieldError:
 
     Reported in the same list as the low-confidence fields, because from the
     caller's side it is the same kind of problem: part of this document cannot
-    be trusted. Leaving it out would be worse than useless -- an empty section
-    is a perfectly ordinary, correct answer when the clinician did not mention
-    it, so with no error attached there is nothing to tell the two apart.
+    be trusted. Leaving it out would be worse than useless, because an empty
+    section is a perfectly ordinary, correct answer when the clinician did not
+    mention it, so with no error attached there is nothing to tell the two apart.
     """
     return FieldError(
         loc=["assessment", section],
@@ -246,14 +246,14 @@ async def health() -> JSONResponse:
 async def parse_assessment(file: UploadFile = File(...)):
     """Transcribe a recording and extract a first assessment. Does not save.
 
-    Returns 422 when any field falls below the confidence threshold -- with the
+    Returns 422 when any field falls below the confidence threshold, with the
     draft attached. Withholding the draft would be the wrong kind of strict: the
     clinician needs to see what was heard in order to correct it, and the
     flagged fields are precisely the ones they should be looking at.
     """
     audio_path = await _spool(file, settings.max_upload_mb * 1024 * 1024)
     try:
-        # Both of these are synchronous and slow -- Whisper for minutes, Gemini
+        # Both of these are synchronous and slow: Whisper for minutes, Gemini
         # for seconds. Calling them directly from an async handler would block
         # the event loop and freeze every other request in the process.
         async with _TRANSCRIBE_LOCK:
@@ -286,7 +286,7 @@ async def parse_assessment(file: UploadFile = File(...)):
 
     # A missing section is reported even when every field that *did* come back
     # scored well. Confidence is an average over what was extracted, so losing a
-    # section tends to raise it -- which is precisely why the score cannot be
+    # section tends to raise it, which is precisely why the score cannot be
     # the only thing standing between a partial result and a 200.
     if failing or missing:
         threshold = settings.extraction_confidence_threshold
@@ -337,8 +337,8 @@ async def list_assessments(
     """List assessments, newest first, optionally narrowed to a single day.
 
     ``date`` filters on when the assessment was captured. The contract has no
-    date of its own -- its only dates are goal ``targetDate`` values, which are
-    targets rather than a record of when anything happened -- so the envelope's
+    date of its own. Its only dates are goal ``targetDate`` values, which are
+    targets rather than a record of when anything happened, so the envelope's
     ``createdAt`` is the only thing "on this date" can honestly mean.
     """
     try:

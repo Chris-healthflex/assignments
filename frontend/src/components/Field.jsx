@@ -15,7 +15,7 @@ import { ConfidencePill } from "./ConfidencePill";
  * explanation is the recording itself, and repeating it inside every table cell
  * would bury the measurements it is meant to draw attention to.
  */
-export function Field({ path, label, multiline = false, placeholder = "—", variant = "row" }) {
+export function Field({ path, label, multiline = false, placeholder = "-", variant = "row" }) {
   const { valueAt, update, flagFor, evidenceFor, confidenceAt, selected, select, readOnly } =
     useAssessment();
 

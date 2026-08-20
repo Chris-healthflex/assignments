@@ -6,17 +6,17 @@
                                     └──── repair <────┘
 
 **Three nodes, not one call and not seven.** A single call producing all seven
-sections at once gets measurably lazier about the later ones -- Gemini degrades
+sections at once gets measurably lazier about the later ones: Gemini degrades
 as an output schema deepens. The other extreme, one call per section, was what
 this started as, and it broke on contact with reality: the Gemini free tier
 allows five requests per minute and a few dozen per day, so a seven-call fan-out
 429s on arrival and burns a day's quota in three runs. Three nodes grouped by
-what a clinician actually reasons about together -- the subjective picture, the
-measurements, the plan -- keeps each call focused, fits inside the free tier,
-and leaves headroom for the repair pass.
+what a clinician actually reasons about together (the subjective picture, the
+measurements, the plan) keeps each call focused, fits inside the free tier, and
+leaves headroom for the repair pass.
 
 **Every value must be quoted.** A node returns its data *and* a list of
-`Citation`s -- the verbatim transcript span each value came from. We then check
+`Citation`s: the verbatim transcript span each value came from. We then check
 those quotes against the transcript **in our own code**. This is the difference
 between asking a model to be honest and being able to tell whether it was: a
 value whose quote is not in the transcript was invented, full stop, and it
@@ -26,6 +26,14 @@ scores zero no matter how confident the model claims to be.
 a quote; the dotted path (``objectiveAssessment.tests[0].value``) is derived by
 walking the assembled document ourselves. Asking an LLM to emit correct array
 indices is a needless way to lose data.
+
+**Citations stay with the group that produced them.** They are kept per group
+rather than pooled, so a field is only ever checked against the quotes from the
+call that filled it. Values repeat across sections (``unitName`` is "degrees" in
+both ``objectiveAssessment.tests`` and ``objectiveGoals``, and those come from
+different calls), so a single pooled list lets one group's quote decide the fate
+of another group's field. Keeping them separate is also what lets a repair
+*replace* a group's quotes instead of adding to them.
 
 **Repair targets hallucination specifically.** When grounding finds a quote that
 is not in the transcript, the repair pass re-asks *only the affected group*,
@@ -38,6 +46,7 @@ from __future__ import annotations
 
 import logging
 import operator
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from typing import Annotated, Any, TypedDict
 
@@ -58,6 +67,7 @@ from app.schemas import (
     SubjectiveAssessment,
     SubjectiveGoal,
     TranscriptionResult,
+    _bare,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,9 +143,9 @@ Absolute rules:
   there. Do not repair it into what you think was meant.
 - Do not record the same finding twice under different names.
 
-Citations are mandatory. For EVERY non-empty field you fill -- including names,
-labels and categories you chose yourself, such as testName or goalCategory --
-add one entry to `citations` containing the value you wrote and the verbatim
+Citations are mandatory. For EVERY non-empty field you fill, including names,
+labels and categories you chose yourself such as testName or goalCategory, add
+one entry to `citations` containing the value you wrote and the verbatim
 transcript span it came from.
 
 - For a value taken from the transcript, quote the span that states it.
@@ -149,7 +159,7 @@ span is checked against the transcript automatically, and a field whose span
 cannot be found there is discarded as unsupported.
 
 Quote the shortest span that still establishes the value. Include the words
-that give it meaning -- a side, a unit, a sign -- and nothing further."""
+that give it meaning, such as a side, a unit or a sign, and nothing further."""
 
 # group -> (response model, sections it fills, what to extract)
 GROUP_SPECS: dict[str, tuple[type[BaseModel], tuple[str, ...], str]] = {
@@ -175,13 +185,13 @@ GROUP_SPECS: dict[str, tuple[type[BaseModel], tuple[str, ...], str]] = {
         PlanOut,
         ("subjectiveGoals", "objectiveGoals", "recommendation", "patientAdvice"),
         "`subjectiveGoals`: goals described in words, with no measured target. "
-        "`objectiveGoals`: goals with a measurable target -- goalName, "
+        "`objectiveGoals`: goals with a measurable target: goalName, "
         "goalCategory (e.g. 'Range of motion', 'Strength'), unitName and target "
         "value. A goal belongs in exactly one of these two lists, never both. "
         "targetDate only if a date or deadline was actually spoken.\n"
         "`recommendation`: what kind of sessions were recommended (sessionType) "
         "and how often (sessionFrequency).\n"
-        "`patientAdvice`: advice for the patient to follow themselves -- "
+        "`patientAdvice`: advice for the patient to follow themselves: "
         "self-management, activity modification, home instructions. If the "
         "transcript contains none, leave it empty rather than repeating the "
         "treatment plan.",
@@ -233,7 +243,7 @@ def _run_group(group: str, transcript: str, hint: str = "") -> tuple[BaseModel |
     Returns the parsed result and an empty string, or ``None`` and the reason it
     failed. The reason is carried rather than only logged because a section left
     empty by a failed call has to stay distinguishable from one left empty
-    because the clinician never mentioned it -- those look identical in the
+    because the clinician never mentioned it. Those look identical in the
     finished document, and only one of them is trustworthy.
     """
     response_model, sections, description = GROUP_SPECS[group]
@@ -249,7 +259,7 @@ def _run_group(group: str, transcript: str, hint: str = "") -> tuple[BaseModel |
             [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
         )
         return result, ""
-    except Exception as exc:  # noqa: BLE001 -- one bad group must not sink the run
+    except Exception as exc:  # noqa: BLE001 (one bad group must not sink the run)
         reason = str(exc).strip()[:200] or exc.__class__.__name__
         logger.warning("Group %s failed: %s", group, reason)
         return None, reason
@@ -267,10 +277,14 @@ class ExtractionState(TypedDict, total=False):
     transcription: TranscriptionResult | None
     # Reducers, because the group nodes write concurrently.
     sections: Annotated[dict[str, Any], _merge]
-    citations: Annotated[list[Citation], operator.add]
-    # group -> why its call failed, or "" once it has succeeded. A dict rather
-    # than a list because a repair can clear an earlier failure, and the
-    # append-only reducers above have no way to take one back.
+    # group -> the quotes that group gave us. Keyed by group and merged rather
+    # than appended, so a repair replaces a group's quotes outright. Appending
+    # them left the rejected quote in the list, and since matching takes the
+    # first quote that fits, a corrected one could never win.
+    citations: Annotated[dict[str, list[Citation]], _merge]
+    # group -> why its call failed, or "" once it has succeeded. A dict for the
+    # same reason: a repair can clear an earlier failure, and an append-only
+    # reducer has no way to take one back.
     failures: Annotated[dict[str, str], _merge]
     assessment: FirstAssessment | None
     flags: ExtractionFlags | None
@@ -290,13 +304,15 @@ def _make_group_node(group: str):
     def node(state: ExtractionState) -> dict[str, Any]:
         result, reason = _run_group(group, state["transcript"])
         if result is None:
-            return {
-                "errors": [f"Group {group} could not be extracted: {reason}"],
-                "failures": {group: reason},
-            }
+            # Recorded only in `failures`, which a repair can clear. Writing it
+            # to the append-only `errors` list as well meant a group that failed
+            # once and succeeded on the retry still carried "could not be
+            # extracted" into the saved record, contradicting the very section
+            # sitting beside it.
+            return {"failures": {group: reason}}
         return {
             "sections": _sections_from(group, result),
-            "citations": list(result.citations),
+            "citations": {group: list(result.citations)},
             "failures": {group: ""},
         }
 
@@ -307,9 +323,9 @@ def _make_group_node(group: str):
 def assemble_node(state: ExtractionState) -> dict[str, Any]:
     """Merge the groups into one contract document.
 
-    Any section that failed simply stays at its schema default -- an empty
-    string or an empty array -- which is the honest representation of "we do not
-    know" and keeps the document valid rather than half-formed.
+    Any section that failed simply stays at its schema default, an empty string
+    or an empty array, which is the honest representation of "we do not know"
+    and keeps the document valid rather than half-formed.
     """
     sections = state.get("sections") or {}
     try:
@@ -328,14 +344,14 @@ def ground_node(state: ExtractionState) -> dict[str, Any]:
         assessment,
         state["transcript"],
         state.get("transcription"),
-        state.get("citations") or [],
+        state.get("citations") or {},
     )
     failures = {g: r for g, r in (state.get("failures") or {}).items() if r}
     failed_sections = sorted(
         section for section, group in SECTION_TO_GROUP.items() if group in failures
     )
 
-    # A field inside a failed section is not "unresolved" -- that word means the
+    # A field inside a failed section is not "unresolved". That word means the
     # transcript did not support it, which is a statement about the recording we
     # are in no position to make when the call never returned.
     unresolved = [
@@ -344,7 +360,14 @@ def ground_node(state: ExtractionState) -> dict[str, Any]:
         if not str(value).strip() and _section_of(path) not in failed_sections
     ]
 
+    # Built from the current `failures`, never from an accumulated log: a
+    # warning describes the document being returned, and a group that has since
+    # recovered has nothing left to warn about.
     warnings = list(state.get("errors") or [])
+    warnings += [
+        f"Group {group} could not be extracted: {reason}"
+        for group, reason in sorted(failures.items())
+    ]
     if failed_sections:
         warnings.append(
             f"{', '.join(failed_sections)} could not be extracted after retries. "
@@ -386,7 +409,7 @@ def _repair_hint(offenders: list[FieldEvidence]) -> str:
 
 
 def repair_node(state: ExtractionState) -> dict[str, Any]:
-    """Re-ask the groups that produced unverifiable quotes -- or nothing at all."""
+    """Re-ask the groups that produced unverifiable quotes, or nothing at all."""
     flags = state.get("flags") or ExtractionFlags()
     by_group: dict[str, list[FieldEvidence]] = {}
     for field in flags.ungrounded():
@@ -397,13 +420,13 @@ def repair_node(state: ExtractionState) -> dict[str, Any]:
     # A group whose call failed outright contributed no fields, so it has no
     # ungrounded ones either and the loop above cannot see it. Without this a
     # transient 503 costs a whole section permanently, while a single badly
-    # quoted value gets two more chances -- exactly backwards.
+    # quoted value gets two more chances. Exactly backwards.
     for group, reason in (state.get("failures") or {}).items():
         if reason:
             by_group.setdefault(group, [])
 
     updates: dict[str, Any] = {}
-    citations: list[Citation] = []
+    citations: dict[str, list[Citation]] = {}
     failures: dict[str, str] = {}
     for group, offenders in by_group.items():
         result, reason = _run_group(group, state["transcript"], hint=_repair_hint(offenders))
@@ -411,7 +434,9 @@ def repair_node(state: ExtractionState) -> dict[str, Any]:
             failures[group] = reason
             continue
         updates.update(_sections_from(group, result))
-        citations.extend(result.citations)
+        # Replaces, not extends. The rejected quotes are exactly what this call
+        # was made to get rid of.
+        citations[group] = list(result.citations)
         failures[group] = ""
 
     return {
@@ -441,7 +466,7 @@ def _route(state: ExtractionState) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Grounding (plain code -- no model involved, which is the point)
+# Grounding (plain code, no model involved, which is the point)
 # --------------------------------------------------------------------------- #
 def _normalise(text: str) -> str:
     return " ".join(str(text).lower().split())
@@ -463,31 +488,65 @@ def _section_of(path: str) -> str:
     return path.split(".")[0].split("[")[0]
 
 
-def _match_citation(value: str, citations: list[Citation]) -> Citation | None:
+def _tokens(text: str) -> list[str]:
+    """Lowercased words with the punctuation stripped off each one."""
+    return [token for token in (_bare(w) for w in _normalise(text).split()) if token]
+
+
+def _runs_through(haystack: list[str], needle: list[str]) -> bool:
+    """Is `needle` a run of whole words inside `haystack`?"""
+    size = len(needle)
+    return bool(needle) and any(
+        haystack[i : i + size] == needle for i in range(len(haystack) - size + 1)
+    )
+
+
+def _match_citation(value: str, citations: Sequence[Citation]) -> Citation | None:
     """Find the citation the model raised for this value.
 
-    Exact match first; then a containment check, because a model will sometimes
-    cite "124 degrees" for a field it filled with "124". Anything looser than
-    that would start manufacturing the evidence we are trying to verify.
+    Exact match first, then a whole-word containment check, because a model will
+    sometimes cite "124 degrees" for a field it filled with "124".
+
+    Containment is measured in words rather than characters. On raw substrings
+    "5" is inside "15", so the citation for one measurement would vouch for a
+    different one: a wrong number, carrying a quote that really is in the
+    transcript, scoring high enough to be returned without review. That is the
+    precise failure this module exists to prevent, so the loose end that allowed
+    it is closed rather than merely narrowed.
+
+    Where several quotes fit, the longest wins. It is the most specific claim on
+    the value, whereas taking the first that fits makes the answer depend on the
+    order the model happened to list its citations in.
     """
     target = _normalise(value)
     for citation in citations:
         if _normalise(citation.value) == target:
             return citation
+
+    target_words = _tokens(value)
+    best: Citation | None = None
     for citation in citations:
-        cited = _normalise(citation.value)
-        if cited and (cited in target or target in cited):
-            return citation
-    return None
+        cited_words = _tokens(citation.value)
+        if _runs_through(target_words, cited_words) or _runs_through(
+            cited_words, target_words
+        ):
+            if best is None or len(cited_words) > len(_tokens(best.value)):
+                best = citation
+    return best
 
 
 def ground(
     assessment: FirstAssessment,
     transcript: str,
     transcription: TranscriptionResult | None,
-    citations: list[Citation],
+    citations: Mapping[str, Sequence[Citation]],
 ) -> list[FieldEvidence]:
-    """Build one `FieldEvidence` per populated field of the assessment."""
+    """Build one `FieldEvidence` per populated field of the assessment.
+
+    `citations` is keyed by group, and a field is checked only against the
+    quotes from the group that filled its section. A quote from another call is
+    not weaker evidence for this field, it is evidence about a different one.
+    """
     haystack = _normalise(transcript)
     fields: list[FieldEvidence] = []
 
@@ -495,7 +554,8 @@ def ground(
         if not isinstance(value, str) or not value.strip():
             continue  # an empty field claims nothing, so there is nothing to check
 
-        citation = _match_citation(value, citations)
+        group = SECTION_TO_GROUP.get(_section_of(path))
+        citation = _match_citation(value, citations.get(group, ()) if group else ())
         if citation is None:
             fields.append(
                 FieldEvidence(
@@ -508,12 +568,12 @@ def ground(
             continue
 
         found = bool(citation.evidence.strip()) and _normalise(citation.evidence) in haystack
-        # Only ask the audio how sure it was once we know the quote is real --
+        # Only ask the audio how sure it was once we know the quote is real:
         # scoring a fabricated span would be meaningless.
         #
         # Score the whole quoted span, not just the value's own words. It is
-        # tempting to score only the value -- a clearly-heard "124" should not
-        # be dragged down by a mumbled "degrees" beside it -- but that reasoning
+        # tempting to score only the value, since a clearly-heard "124" should
+        # not be dragged down by a mumbled "degrees" beside it, but that reasoning
         # fails on the case this system exists for: the recording says "knee gig
         # 5 degrees" where "5" is heard perfectly and the ruined word before it
         # is almost certainly "negative". Score the number alone and a sign
@@ -584,7 +644,7 @@ class ExtractionResult(BaseModel):
     flags: ExtractionFlags
 
     def failing(self) -> list[FieldEvidence]:
-        """Fields below the configured bar -- the body of a 422."""
+        """Fields below the configured bar: the body of a 422."""
         return self.flags.below(get_settings().extraction_confidence_threshold)
 
 
@@ -605,7 +665,7 @@ def extract(
             "transcript": transcript,
             "transcription": transcription,
             "sections": {},
-            "citations": [],
+            "citations": {},
             "errors": [],
             "failures": {},
             "attempts": 0,

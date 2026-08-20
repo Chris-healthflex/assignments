@@ -7,8 +7,8 @@ import { getAt, pathFromLoc, setAt } from "../lib/paths";
  * Wiring between the contract and the form.
  *
  * Every input on the review screen is addressed by the same dotted path the
- * server uses for evidence, so a field knows -- without anything being threaded
- * through props -- whether it was flagged, what was quoted for it, and how sure
+ * server uses for evidence, so a field knows, without anything being threaded
+ * through props, whether it was flagged, what was quoted for it, and how sure
  * each signal was. The alternative was passing four props through six layers of
  * table markup.
  *

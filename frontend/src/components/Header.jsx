@@ -26,7 +26,7 @@ export function Header({ view, onView }) {
 
   const tone = !health ? "" : health.mongo ? "ok" : "down";
   const label = !health
-    ? "checking…"
+    ? "checking..."
     : !health.reachable
       ? "api unreachable"
       : health.mongo

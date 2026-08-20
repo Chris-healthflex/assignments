@@ -130,7 +130,7 @@ main {
   font-weight: 400;
 }
 .app-header h1 span::before {
-  content: "— ";
+  content: "\00b7 ";
 }
 .app-header nav {
   display: flex;

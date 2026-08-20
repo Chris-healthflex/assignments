@@ -5,8 +5,8 @@ import { elapsed } from "../lib/format";
 /**
  * The wait.
  *
- * There is no real progress to report -- the server does not stream one -- so
- * this shows honest elapsed time and explains why it takes as long as it does,
+ * There is no real progress to report, because the server does not stream one,
+ * so this shows honest elapsed time and explains why it takes as long as it does,
  * rather than animating a bar that pretends to know. On a cold recording the
  * transcription alone runs for minutes; a spinner with no explanation looks
  * indistinguishable from a hang.

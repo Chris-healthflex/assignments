@@ -3,8 +3,8 @@
 Two tiers, deliberately:
 
 * Conversion tests run everywhere, with no database. They cover the part that
-  can actually corrupt the contract -- the model <-> BSON round-trip -- and are
-  the reason a broken save shows up in CI rather than in a clinician's browser.
+  can actually corrupt the contract (the model <-> BSON round-trip) and are the
+  reason a broken save shows up in CI rather than in a clinician's browser.
 * Integration tests need a live Mongo and skip themselves when there is not
   one. Skipping is honest; mocking the driver would only prove that the mock
   behaves like the mock.
@@ -167,7 +167,7 @@ def test_midnight_belongs_to_exactly_one_day():
 
 
 # --------------------------------------------------------------------------- #
-# Integration -- needs a live Mongo
+# Integration: needs a live Mongo
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 async def collection():
@@ -279,7 +279,7 @@ async def test_ensure_indexes_is_idempotent(collection):
     await db.ensure_indexes()  # a second boot must not fail
 
     # `list_indexes` is a coroutine returning a cursor, unlike `find`, which
-    # returns one directly -- the await is required.
+    # returns one directly, so the await is required.
     cursor = await collection.list_indexes()
     names = [idx["name"] async for idx in cursor]
     assert db.LIST_INDEX in names

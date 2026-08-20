@@ -6,9 +6,9 @@ import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB, humanSize, rejectionReason } from "../
  * Choosing a recording.
  *
  * The format and size checks run here as well as on the server. Not because the
- * client's opinion counts -- the server rejects the same files independently --
- * but because finding out a file is the wrong kind after uploading forty
- * megabytes over a home connection is a bad way to learn it.
+ * client's opinion counts, since the server rejects the same files
+ * independently, but because finding out a file is the wrong kind after
+ * uploading forty megabytes over a home connection is a bad way to learn it.
  */
 export function Uploader({ onStart, disabled }) {
   const inputRef = useRef(null);
@@ -40,7 +40,7 @@ export function Uploader({ onStart, disabled }) {
     >
       <h2>Upload a consultation recording</h2>
       <p className="lede">
-        WAV, MP3 or M4A — also FLAC, OGG and WebM. Up to {MAX_UPLOAD_MB} MB.
+        WAV, MP3 or M4A, plus FLAC, OGG and WebM. Up to {MAX_UPLOAD_MB} MB.
         <br />
         Nothing is saved until you have reviewed it.
       </p>

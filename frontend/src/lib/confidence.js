@@ -2,8 +2,8 @@
  * The confidence rule, mirrored from `FieldEvidence.confidence` on the server.
  *
  * The server does not send the combined score. It is a computed property there
- * on purpose -- storing it would freeze one version of the rule into every
- * saved record -- which means the rule now exists in two places. The API sends
+ * on purpose, because storing it would freeze one version of the rule into
+ * every saved record, which means the rule now exists in two places. The API sends
  * its own number for the fields it flagged, so the copy below is only used for
  * the fields that passed; the Node checks in `npm test`-less form (see
  * scripts/check-logic.mjs) pin it to the same behaviours the Python tests pin.
@@ -29,7 +29,7 @@ export function score(evidence) {
 
 /**
  * Three states, and only three get colour: a field is trusted, was heard badly,
- * or was never traced to the recording at all. The last is the serious one --
+ * or was never traced to the recording at all. The last is the serious one:
  * it means nothing in the transcript supports the value.
  */
 export function severityOf(flag) {

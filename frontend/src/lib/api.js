@@ -27,7 +27,7 @@ async function readError(response) {
 /**
  * Upload a recording.
  *
- * A 422 here is not a failure to be thrown -- it is the documented answer when
+ * A 422 here is not a failure to be thrown. It is the documented answer when
  * something was heard poorly, and it carries the draft along with the list of
  * fields to look at. Both outcomes are returned; only a genuine error throws.
  */

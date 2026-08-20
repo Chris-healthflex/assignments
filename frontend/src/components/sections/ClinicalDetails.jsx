@@ -4,7 +4,7 @@ import { SectionCard } from "../SectionCard";
 /**
  * The presenting picture: what brought the patient in, for how long, and the
  * background. Complaint and duration sit side by side because they are read
- * together -- "left knee pain" means something different at three days than at
+ * together: "left knee pain" means something different at three days than at
  * eight months.
  */
 export function ClinicalDetails() {

@@ -90,14 +90,14 @@ function FieldDetail({ path, flag, evidence, confidence, current }) {
       <Row label="Field" value={path} mono />
       <Row
         label="Quoted from the recording"
-        value={source.evidence ? `“${source.evidence}”` : "— nothing quoted —"}
+        value={source.evidence ? `"${source.evidence}"` : "(nothing quoted)"}
         mono
       />
 
       {flag && <p className={`why ${severity}`}>{flag.msg}</p>}
       {edited && (
         <p className="edited">
-          Extraction had <b>“{original}”</b> — you changed it to <b>“{current}”</b>.
+          Extraction had <b>"{original}"</b>. You changed it to <b>"{current}"</b>.
         </p>
       )}
 

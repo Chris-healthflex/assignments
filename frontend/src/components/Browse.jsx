@@ -7,9 +7,9 @@ import { formatDateTime, todayIso } from "../lib/format";
  * Saved assessments, by day.
  *
  * The date filters on when the assessment was captured. The contract holds no
- * date of its own -- its only dates are goal targets, which are intentions
- * rather than a record of when anything happened -- so the envelope's
- * `createdAt` is the only honest reading of "on this date".
+ * date of its own. Its only dates are goal targets, which are intentions rather
+ * than a record of when anything happened, so the envelope's `createdAt` is the
+ * only honest reading of "on this date".
  */
 export function Browse({ onOpen, onError }) {
   const [date, setDate] = useState(todayIso());
@@ -22,7 +22,7 @@ export function Browse({ onOpen, onError }) {
       try {
         setRows(await listAssessments(day ? { date: day } : {}));
       } catch (error) {
-        onError(`Could not load assessments — ${error.message}`);
+        onError(`Could not load assessments: ${error.message}`);
         setRows([]);
       } finally {
         setLoading(false);
@@ -63,7 +63,7 @@ export function Browse({ onOpen, onError }) {
         </button>
       </div>
 
-      {loading && <p className="empty">Loading…</p>}
+      {loading && <p className="empty">Loading...</p>}
 
       {!loading && rows?.length === 0 && (
         <p className="empty">

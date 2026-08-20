@@ -91,7 +91,7 @@ def _walk(node, path=""):
 # Exact match: keys, nesting, ordering
 # --------------------------------------------------------------------------- #
 def test_top_level_sections_are_exactly_the_seven():
-    """No missing sections, and -- just as important -- no extra ones."""
+    """No missing sections, and just as important, no extra ones."""
     assert tuple(FirstAssessment.model_fields) == SECTIONS
     assert tuple(FirstAssessment().model_dump()) == SECTIONS
 
@@ -144,7 +144,7 @@ def test_extra_key_in_a_nested_section_is_rejected():
 
 @pytest.mark.parametrize("renamed", ["clinical_details", "recommendations", "patientAdvise"])
 def test_renamed_key_is_rejected(renamed):
-    """A renamed key arrives as an unknown key -- which is exactly the point."""
+    """A renamed key arrives as an unknown key, which is exactly the point."""
     payload = json.loads(json.dumps(SAMPLE))
     payload[renamed] = payload.pop(
         {"clinical_details": "clinicalDetails", "recommendations": "recommendation", "patientAdvise": "patientAdvice"}[renamed]
@@ -214,7 +214,7 @@ def test_numeric_value_is_coerced_to_string():
 
 
 def test_structural_value_where_a_string_belongs_is_rejected():
-    """Coercion is for scalars only -- a dict in a string slot is a real error."""
+    """Coercion is for scalars only: a dict in a string slot is a real error."""
     payload = json.loads(json.dumps(SAMPLE))
     payload["clinicalDetails"]["chiefComplaint"] = {"text": "back pain"}
     with pytest.raises(ValidationError):
@@ -298,7 +298,7 @@ def test_a_silent_model_is_not_treated_as_a_screaming_one():
     """Models are erratic about filling in an optional confidence number.
 
     Reading an omitted score as 0.0 would zero out every well-grounded field in
-    a section and bury the genuinely suspect ones in noise -- which is exactly
+    a section and bury the genuinely suspect ones in noise, which is exactly
     what happened on the first live run.
     """
     quiet = _evidence(modelConfidence=0.0, audioConfidence=0.94)
@@ -435,7 +435,7 @@ def test_context_window_does_not_reach_the_whole_sentence():
             )
         ],
     )
-    # The 2% word is six places away -- outside a three-word window, and so not
+    # The 2% word is six places away, outside a three-word window, and so not
     # this value's problem.
     assert result.context_confidence("target") == pytest.approx(0.99)
     assert result.context_confidence("target", window=6) == pytest.approx(0.02)
@@ -445,7 +445,7 @@ def test_a_misheard_function_word_nearby_is_not_an_alarm():
     """A mangled "and" between two goals puts neither of them in doubt.
 
     Function words are what Whisper mangles most and what carries least clinical
-    meaning -- on the real recording this exact case produced two false alarms.
+    meaning. On the real recording this exact case produced two false alarms.
     """
     words = [("improving", 0.99), ("ankle", 0.99), ("mobility", 1.0), ("and", 0.18), ("activating", 0.99)]
     result = TranscriptionResult(

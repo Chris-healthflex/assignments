@@ -13,7 +13,7 @@ import { Inspector } from "./Inspector";
  * A 422 and a 200 render the same way, and that is deliberate: the status code
  * decides whether fields are marked, not whether the clinician gets to see the
  * draft. An error page with nothing on it to correct would be the wrong kind of
- * strict -- the flagged fields are exactly what they need in front of them.
+ * strict: the flagged fields are exactly what they need in front of them.
  */
 export function Review({
   payload,
@@ -76,7 +76,7 @@ export function Review({
               disabled={saveState.status === "saving" || saveState.status === "saved"}
             >
               {saveState.status === "saving"
-                ? "Saving…"
+                ? "Saving..."
                 : saveState.status === "saved"
                   ? `Saved · ${saveState.id.slice(-6)}`
                   : "Save assessment"}
@@ -88,7 +88,7 @@ export function Review({
       {(flags.failedSections ?? []).length > 0 && (
         <div className="incomplete">
           <b>This assessment is incomplete.</b>{" "}
-          {flags.failedSections.join(", ")} could not be extracted — the model calls
+          {flags.failedSections.join(", ")} could not be extracted. The model calls
           for those sections failed after retries. They are blank because the service
           could not ask, not because the recording was silent, and the confidence
           figure above covers only what did come back.
