@@ -69,6 +69,41 @@ Every extracted field is verified against the raw transcript before being includ
 
 ---
 
+## Key Design Decisions
+
+### 1. Single Audio Recording Pipeline
+- **Problem**: Real-world clinical consultations (physiotherapy, general practice, consultations) are recorded as a single continuous audio stream containing both clinician and patient voices.
+- **Decision**: Process a single WAV audio input file end-to-end. The pipeline validates the WAV header (`AudioValidator`), transcribes the full audio (`WhisperTranscriber`), and utilizes a speaker-aware system prompt to attribute clinical facts, complaints, and recommendations correctly without requiring prior channel separation.
+
+### 2. LangGraph 4-Node Stateful Agent Architecture
+- **Problem**: Monolithic LLM prompts often fail schema constraints or produce subtle hallucinations when handling complex multi-field clinical assessments.
+- **Decision**: Modularized the extraction process into a 4-node stateful graph (`ClinicalExtractionGraph`):
+  1. `validate_transcript`: Ensures transcript non-emptiness and basic quality checks.
+  2. `extract_clinical_entities`: Executes LLM extraction with structural & evidence-grounding instructions.
+  3. `validate_extraction`: Anti-hallucination layer that verifies verbatim evidence in the raw transcript and prunes ungrounded claims.
+  4. `build_first_assessment`: Enforces Pydantic v2 schema validation, default empty strings `""`, and structured list formats.
+
+### 3. Strict Anti-Hallucination & Verbatim Evidence Grounding
+- **Problem**: Clinical AI must never invent diagnoses, fake test results, or hallucinate non-existent recommendations.
+- **Decision**: Implemented a multi-tier defense:
+  - **Speaker Attribution Check**: Doctor recommendations (`recommendation`, `patientAdvice`) are verified against clinician dialogue. Patient history (`clinicalHistory`, `chiefComplaint`) is verified against patient dialogue.
+  - **Pruning Strategy**: Any field lacking transcript evidence is safely reset to `""` or `[]` instead of aborting execution, ensuring robust partial extraction.
+  - **Confidence Threshold**: A minimum grounding score (default `0.70`) must be met for pipeline success.
+
+### 4. Pydantic v2 Schema Design & Data Guarantees
+- **Decision**: Enforced strict schema guarantees:
+  - **No `null` Values**: Unextracted or missing fields default to empty strings `""` or empty arrays `[]`.
+  - **Bilateral Measurement Support**: `ObjectiveTest` supports `left`, `right`, and single `value` fields to capture ROM (Range of Motion) measurements (e.g. Left Knee Flexion: 124°, Right: 130°).
+
+### 5. Modular & Extensible Service Layer
+- **Decision**: Clean separation of concerns with dependency inversion:
+  - `AssessmentService`: High-level orchestration.
+  - `AudioValidator`: Binary RIFF header and sample rate checking.
+  - `WhisperTranscriber`: Pluggable backend (Groq API, OpenAI API, Local Whisper, or Mock).
+  - `AssessmentRepository`: Decoupled MongoDB persistence layer.
+
+---
+
 ## FirstAssessment Schema
 
 ```json
@@ -348,9 +383,75 @@ python scripts/test_pipeline.py path/to/your_audio.wav
 pytest -v
 ```
 
-### Expected Pipeline Output (all checks pass)
+### Real Test Pipeline Console Log & Output
 
-```
+Running `python scripts/test_pipeline.py` yields the following full execution log and validated JSON output:
+
+```text
+======================================================================
+CLINICAL AUDIO -> STRUCTURED FIRSTASSESSMENT PIPELINE
+======================================================================
+
+[1/4] Audio file: data/clinical_assessment.wav (9313536 bytes)
+
+[2/4] Validating WAV audio structure...
+      WAV verified: 1 channels, 44100 Hz, 2 sample width, 105.55 seconds
+      WAV validation PASSED.
+
+[3/4] Transcribing audio via Whisper...
+      Transcribing audio using Whisper API (model=whisper-large-v3-turbo)
+      Whisper API transcription completed successfully (1814 characters)
+
+[4/5] Running LangGraph extraction agent & FirstAssessment validation...
+      Starting LangGraph clinical extraction service
+      LangGraph Node [validate_transcript]: Processing transcript of length 1814
+      LangGraph Node [extract_clinical_entities]: Calling LLM (openai/gpt-oss-120b)
+      LangGraph Node [validate_extraction]: Anti-hallucination evidence grounding check
+      LangGraph Node [build_first_assessment]: Validating against FirstAssessment Pydantic schema
+      Clinical extraction successfully built FirstAssessment schema.
+
+======================================================================
+FINAL STRUCTURED FIRSTASSESSMENT JSON OUTPUT:
+======================================================================
+{
+  "clinicalDetails": {
+    "clinicalHistory": "Left tibial condyle fracture and avulsion ACL tear from a road traffic accident; Open reduction and internal fixation performed by Dr. Hemant Kalyan, followed by 4-6 weeks non-weight bearing and progressive loading.",
+    "chiefComplaint": "Left knee pain, difficulty performing functional activities and walking, accompanied by ankle and back pain during prolonged walking.",
+    "duration": "8 months"
+  },
+  "subjectiveAssessments": [
+    { "testName": "Surgical Scar Observation", "conclusion": "Healed scar on medial aspect of knee" },
+    { "testName": "Knee Flexion (Overpressure)", "conclusion": "Restricted and painful" },
+    { "testName": "Knee Extension", "conclusion": "Restricted" },
+    { "testName": "Knee Swelling", "conclusion": "Present" },
+    { "testName": "Patellar Mobility", "conclusion": "Good" },
+    { "testName": "Hip Range of Motion", "conclusion": "Generally full and pain-free, left hip extension restricted" }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      { "testName": "Knee Flexion",         "unitName": "degrees", "left": "124", "right": "130" },
+      { "testName": "Knee Extension",        "unitName": "degrees", "left": "20",  "right": "-5"  },
+      { "testName": "Hip Internal Rotation", "unitName": "degrees", "value": "45", "comments": "bilateral" },
+      { "testName": "Hip External Rotation", "unitName": "degrees", "value": "60", "comments": "bilateral" },
+      { "testName": "Ankle Dorsiflexion",    "unitName": "degrees", "left": "4.5", "right": "12"  }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [],
+  "recommendation": [
+    { "sessionType": "Physiotherapy", "sessionFrequency": "once weekly for 4 sessions" }
+  ],
+  "patientAdvice": {
+    "adviceDetails": "Emphasis on restoring knee extension, improving knee stability and single-leg stability, strengthening the quadriceps and functional lower-limb musculature, improving ankle mobility, and activating the posterior chain."
+  }
+}
+======================================================================
+
+[5/5] Persisting FirstAssessment to MongoDB & Verifying Retrieval...
+      MongoDB Save SUCCESS: ID = e1897ae0-7a40-45af-825e-0371f0c09f8e
+      MongoDB Retrieval SUCCESS: Verified ID 'e1897ae0-7a40-45af-825e-0371f0c09f8e'
+      Persisted Chief Complaint: 'Left knee pain, difficulty performing functional activities ...'
+
 ======================================================================
 PIPELINE EXECUTION VERIFICATION SUMMARY:
 ======================================================================
@@ -365,6 +466,7 @@ PIPELINE EXECUTION VERIFICATION SUMMARY:
   End-to-End Pipeline:   PASSED (100% Verified)
 ======================================================================
 ```
+
 
 ---
 
