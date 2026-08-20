@@ -19,7 +19,6 @@ changing the model invalidates it rather than silently serving a stale result.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import math
 from functools import lru_cache

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     app_name: str = "v2n-first-assessment"
     env: Literal["local", "dev", "prod"] = "local"
     log_level: str = "INFO"
+    # Cap on uploaded audio. An unbounded upload lets one request decide how
+    # much disk the process uses; 50 MB is roughly two hours of 16-bit mono WAV,
+    # well past any consultation this is meant to handle.
+    max_upload_mb: int = 50
 
     # MongoDB
     mongodb_uri: str = "mongodb://localhost:27017"

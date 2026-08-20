@@ -281,7 +281,7 @@ def stub_model(monkeypatch):
 
     def fake(group, transcript, hint=""):
         calls.append((group, hint))
-        return responses[group]
+        return responses[group], ""
 
     monkeypatch.setattr(extraction, "_run_group", fake)
     return calls, responses
@@ -334,8 +334,8 @@ def test_a_hallucinating_group_triggers_a_targeted_repair(monkeypatch):
         calls.append((group, hint))
         if group == "plan" and hint:
             # Told its quote was unverifiable, the model backs off correctly.
-            return _canned()["plan"]
-        return responses[group]
+            return _canned()["plan"], ""
+        return responses[group], ""
 
     monkeypatch.setattr(extraction, "_run_group", fake)
     result = extraction.extract(TRANSCRIPT, _transcription())
@@ -354,7 +354,8 @@ def test_repair_gives_up_rather_than_looping_forever(monkeypatch):
 
     def fake(group, transcript, hint=""):
         calls.append(group)
-        return _plan_with_invented_advice() if group == "plan" else _canned()[group]
+        result = _plan_with_invented_advice() if group == "plan" else _canned()[group]
+        return result, ""
 
     monkeypatch.setattr(extraction, "_run_group", fake)
     result = extraction.extract(TRANSCRIPT, _transcription())
@@ -366,7 +367,9 @@ def test_repair_gives_up_rather_than_looping_forever(monkeypatch):
 
 def test_a_failing_group_does_not_sink_the_run(monkeypatch):
     def fake(group, transcript, hint=""):
-        return None if group == "objective" else _canned()[group]
+        if group == "objective":
+            return None, "503 UNAVAILABLE"
+        return _canned()[group], ""
 
     monkeypatch.setattr(extraction, "_run_group", fake)
     result = extraction.extract(TRANSCRIPT, _transcription())
@@ -374,6 +377,85 @@ def test_a_failing_group_does_not_sink_the_run(monkeypatch):
     assert result.assessment.objectiveAssessment.tests == []
     assert result.assessment.recommendation[0].sessionType == "Physiotherapy"
     assert any("objective" in w for w in result.flags.warnings)
+
+
+def test_a_group_that_returned_nothing_is_retried(monkeypatch):
+    """The gap that lost a whole section to one transient 503.
+
+    Repair used to look only at fields whose quotes did not check out. A group
+    whose call failed produced no fields at all, so it was invisible to that
+    loop and never asked again -- a bad quote got two more chances while a
+    dropped connection got none.
+    """
+    attempts: list[str] = []
+
+    def fake(group, transcript, hint=""):
+        attempts.append(group)
+        if group == "subjective" and attempts.count("subjective") == 1:
+            return None, "503 UNAVAILABLE"
+        return _canned()[group], ""
+
+    monkeypatch.setattr(extraction, "_run_group", fake)
+    result = extraction.extract(TRANSCRIPT, _transcription())
+
+    assert attempts.count("subjective") == 2  # asked again after the failure
+    assert result.assessment.clinicalDetails.chiefComplaint  # and it came back
+    assert result.flags.failedSections == []  # so nothing is reported missing
+    assert result.flags.incomplete is False
+
+
+def test_a_group_that_never_recovers_names_the_sections_it_cost(monkeypatch):
+    def fake(group, transcript, hint=""):
+        if group == "subjective":
+            return None, "503 UNAVAILABLE"
+        return _canned()[group], ""
+
+    monkeypatch.setattr(extraction, "_run_group", fake)
+    result = extraction.extract(TRANSCRIPT, _transcription())
+
+    # Named by contract section, not by internal group: "subjective" means
+    # nothing to a caller reading the response.
+    assert result.flags.failedSections == ["clinicalDetails", "subjectiveAssessments"]
+    assert result.flags.incomplete is True
+    assert any("not because the recording was silent" in w for w in result.flags.warnings)
+
+
+def test_a_section_lost_to_a_failed_call_is_not_called_unresolved(monkeypatch):
+    """`unresolvedFields` means the transcript did not support it.
+
+    That is a claim about the recording, and a call that never returned gives
+    us no standing to make it. Conflating the two would let a network error
+    masquerade as a clinical finding.
+    """
+
+    def fake(group, transcript, hint=""):
+        if group == "subjective":
+            return None, "503 UNAVAILABLE"
+        return _canned()[group], ""
+
+    monkeypatch.setattr(extraction, "_run_group", fake)
+    result = extraction.extract(TRANSCRIPT, _transcription())
+
+    assert not any(p.startswith("clinicalDetails") for p in result.flags.unresolvedFields)
+    assert not any(p.startswith("subjectiveAssessments") for p in result.flags.unresolvedFields)
+    # A field that is genuinely empty because nobody mentioned it still is.
+    assert "patientAdvice.adviceDetails" in result.flags.unresolvedFields
+
+
+def test_every_group_failing_is_no_result_rather_than_an_empty_one(monkeypatch):
+    """An empty document would be indistinguishable from a silent recording."""
+
+    def fake(group, transcript, hint=""):
+        return None, "429 RESOURCE_EXHAUSTED"
+
+    monkeypatch.setattr(extraction, "_run_group", fake)
+
+    with pytest.raises(extraction.ExtractionUnavailable) as raised:
+        extraction.extract(TRANSCRIPT, _transcription())
+
+    assert "429" in str(raised.value)
+    # Still an ExtractionFailed, so existing handlers keep working.
+    assert isinstance(raised.value, extraction.ExtractionFailed)
 
 
 def test_empty_transcript_is_refused():

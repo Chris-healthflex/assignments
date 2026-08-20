@@ -310,7 +310,24 @@ class ExtractionFlags(ContractModel):
         default_factory=list,
         description="Contract paths the transcript did not support, left empty on purpose.",
     )
+    failedSections: CleanStrList = Field(
+        default_factory=list,
+        description=(
+            "Sections left empty because the call that produces them failed. "
+            "Distinct from unresolvedFields, which is empty on purpose."
+        ),
+    )
     warnings: CleanStrList = Field(default_factory=list)
+
+    @property
+    def incomplete(self) -> bool:
+        """True when part of the document is missing for a reason of ours.
+
+        An empty section normally means the clinician did not mention it, which
+        is a trustworthy answer. This is the other case, and the two must never
+        be told apart by guesswork.
+        """
+        return bool(self.failedSections)
 
     def below(self, threshold: float) -> list[FieldEvidence]:
         """Fields that fail the bar -- the body of the 422, field by field."""
@@ -326,6 +343,7 @@ class ExtractionFlags(ContractModel):
         fields: list[FieldEvidence],
         unresolved: list[str] | None = None,
         warnings: list[str] | None = None,
+        failed_sections: list[str] | None = None,
     ) -> ExtractionFlags:
         """Build the flags, deriving `overallConfidence` from the fields.
 
@@ -338,6 +356,7 @@ class ExtractionFlags(ContractModel):
             overallConfidence=sum(scores) / len(scores) if scores else 0.0,
             fields=fields,
             unresolvedFields=unresolved or [],
+            failedSections=failed_sections or [],
             warnings=warnings or [],
         )
 

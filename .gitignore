@@ -12,13 +12,15 @@ venv/
 .env
 .env.local
 
-# Media & model artifacts
-audio/
-*.wav
-*.mp3
-*.m4a
+# Model weights and the transcript cache
 models/
 .cache/
+
+# Frontend build inputs. The built bundle in app/static IS committed, so the
+# service runs from a clone with no npm install; the tree that produces it is
+# not.
+frontend/node_modules/
+frontend/.vite/
 
 # Editors / OS
 .vscode/
@@ -26,5 +28,9 @@ models/
 .DS_Store
 Thumbs.db
 
-# Derived transcripts (patient audio -- never commit)
+# Derived transcripts and captured API responses. Both embed the transcript,
+# which is patient audio in text form -- never commit either.
 transcript.txt
+last_api_response.json
+*assessment*.json
+*.log

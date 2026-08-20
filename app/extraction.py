@@ -67,6 +67,15 @@ class ExtractionFailed(RuntimeError):
     """Raised when the agent cannot produce anything usable at all."""
 
 
+class ExtractionUnavailable(ExtractionFailed):
+    """Every group call failed. There is no partial result worth reviewing.
+
+    Separate from `ExtractionFailed` so the API can answer 502 rather than 422:
+    nothing was wrong with the request, the model provider was simply not
+    answering, and "try again" is the useful advice rather than "fix your input".
+    """
+
+
 # --------------------------------------------------------------------------- #
 # What the model is asked to return
 # --------------------------------------------------------------------------- #
@@ -218,8 +227,15 @@ def _llm():
     )
 
 
-def _run_group(group: str, transcript: str, hint: str = "") -> BaseModel | None:
-    """Ask the model for one group of sections. None if the call fails outright."""
+def _run_group(group: str, transcript: str, hint: str = "") -> tuple[BaseModel | None, str]:
+    """Ask the model for one group of sections.
+
+    Returns the parsed result and an empty string, or ``None`` and the reason it
+    failed. The reason is carried rather than only logged because a section left
+    empty by a failed call has to stay distinguishable from one left empty
+    because the clinician never mentioned it -- those look identical in the
+    finished document, and only one of them is trustworthy.
+    """
     response_model, sections, description = GROUP_SPECS[group]
     prompt = (
         f"<transcript>\n{transcript}\n</transcript>\n\n"
@@ -229,12 +245,14 @@ def _run_group(group: str, transcript: str, hint: str = "") -> BaseModel | None:
         prompt += f"\n{hint}\n"
     try:
         model = _llm().with_structured_output(response_model)
-        return model.invoke(
+        result = model.invoke(
             [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
         )
+        return result, ""
     except Exception as exc:  # noqa: BLE001 -- one bad group must not sink the run
-        logger.warning("Group %s failed: %s", group, str(exc)[:200])
-        return None
+        reason = str(exc).strip()[:200] or exc.__class__.__name__
+        logger.warning("Group %s failed: %s", group, reason)
+        return None, reason
 
 
 # --------------------------------------------------------------------------- #
@@ -250,6 +268,10 @@ class ExtractionState(TypedDict, total=False):
     # Reducers, because the group nodes write concurrently.
     sections: Annotated[dict[str, Any], _merge]
     citations: Annotated[list[Citation], operator.add]
+    # group -> why its call failed, or "" once it has succeeded. A dict rather
+    # than a list because a repair can clear an earlier failure, and the
+    # append-only reducers above have no way to take one back.
+    failures: Annotated[dict[str, str], _merge]
     assessment: FirstAssessment | None
     flags: ExtractionFlags | None
     errors: Annotated[list[str], operator.add]
@@ -266,12 +288,16 @@ def _sections_from(group: str, result: BaseModel) -> dict[str, Any]:
 
 def _make_group_node(group: str):
     def node(state: ExtractionState) -> dict[str, Any]:
-        result = _run_group(group, state["transcript"])
+        result, reason = _run_group(group, state["transcript"])
         if result is None:
-            return {"errors": [f"Group {group} could not be extracted."]}
+            return {
+                "errors": [f"Group {group} could not be extracted: {reason}"],
+                "failures": {group: reason},
+            }
         return {
             "sections": _sections_from(group, result),
             "citations": list(result.citations),
+            "failures": {group: ""},
         }
 
     node.__name__ = f"extract_{group}"
@@ -304,18 +330,63 @@ def ground_node(state: ExtractionState) -> dict[str, Any]:
         state.get("transcription"),
         state.get("citations") or [],
     )
+    failures = {g: r for g, r in (state.get("failures") or {}).items() if r}
+    failed_sections = sorted(
+        section for section, group in SECTION_TO_GROUP.items() if group in failures
+    )
+
+    # A field inside a failed section is not "unresolved" -- that word means the
+    # transcript did not support it, which is a statement about the recording we
+    # are in no position to make when the call never returned.
     unresolved = [
-        path for path, value in _leaves(assessment.model_dump()) if not str(value).strip()
+        path
+        for path, value in _leaves(assessment.model_dump())
+        if not str(value).strip() and _section_of(path) not in failed_sections
     ]
+
+    warnings = list(state.get("errors") or [])
+    if failed_sections:
+        warnings.append(
+            f"{', '.join(failed_sections)} could not be extracted after retries. "
+            "These sections are empty because the model call for them failed, "
+            "not because the recording was silent about them."
+        )
+
     return {
         "flags": ExtractionFlags.summarise(
-            fields, unresolved=unresolved, warnings=state.get("errors") or []
+            fields,
+            unresolved=unresolved,
+            warnings=warnings,
+            failed_sections=failed_sections,
         )
     }
 
 
+def _repair_hint(offenders: list[FieldEvidence]) -> str:
+    """Tell the model exactly which of its quotes did not check out.
+
+    Empty when there are no offenders, which is the case for a group whose call
+    never returned at all: there is nothing to correct, so it is simply asked
+    again rather than accused of something it did not do.
+    """
+    if not offenders:
+        return ""
+    detail = "\n".join(
+        f'- Field `{f.field}`: you gave "{f.value}" citing '
+        f'"{f.evidence or "(no quote at all)"}", which does not appear in the transcript.'
+        for f in offenders
+    )
+    return (
+        "Your previous attempt at this section was rejected:\n"
+        f"{detail}\n"
+        "Quote the transcript exactly, or leave the field empty. Leaving it "
+        "empty is the correct answer when the transcript does not say it. "
+        "Do not substitute a different guess."
+    )
+
+
 def repair_node(state: ExtractionState) -> dict[str, Any]:
-    """Re-ask only the groups that produced unverifiable quotes."""
+    """Re-ask the groups that produced unverifiable quotes -- or nothing at all."""
     flags = state.get("flags") or ExtractionFlags()
     by_group: dict[str, list[FieldEvidence]] = {}
     for field in flags.ungrounded():
@@ -323,29 +394,30 @@ def repair_node(state: ExtractionState) -> dict[str, Any]:
         if group:
             by_group.setdefault(group, []).append(field)
 
+    # A group whose call failed outright contributed no fields, so it has no
+    # ungrounded ones either and the loop above cannot see it. Without this a
+    # transient 503 costs a whole section permanently, while a single badly
+    # quoted value gets two more chances -- exactly backwards.
+    for group, reason in (state.get("failures") or {}).items():
+        if reason:
+            by_group.setdefault(group, [])
+
     updates: dict[str, Any] = {}
     citations: list[Citation] = []
+    failures: dict[str, str] = {}
     for group, offenders in by_group.items():
-        detail = "\n".join(
-            f'- Field `{f.field}`: you gave "{f.value}" citing '
-            f'"{f.evidence or "(no quote at all)"}", which does not appear in the transcript.'
-            for f in offenders
-        )
-        hint = (
-            "Your previous attempt at this section was rejected:\n"
-            f"{detail}\n"
-            "Quote the transcript exactly, or leave the field empty. Leaving it "
-            "empty is the correct answer when the transcript does not say it. "
-            "Do not substitute a different guess."
-        )
-        result = _run_group(group, state["transcript"], hint=hint)
-        if result is not None:
-            updates.update(_sections_from(group, result))
-            citations.extend(result.citations)
+        result, reason = _run_group(group, state["transcript"], hint=_repair_hint(offenders))
+        if result is None:
+            failures[group] = reason
+            continue
+        updates.update(_sections_from(group, result))
+        citations.extend(result.citations)
+        failures[group] = ""
 
     return {
         "sections": updates,
         "citations": citations,
+        "failures": failures,
         "attempts": state.get("attempts", 0) + 1,
     }
 
@@ -354,11 +426,15 @@ def _route(state: ExtractionState) -> str:
     """Repair only while something is ungrounded and retries remain."""
     settings = get_settings()
     flags = state.get("flags") or ExtractionFlags()
-    if not flags.ungrounded():
+    stalled = [group for group, reason in (state.get("failures") or {}).items() if reason]
+
+    if not flags.ungrounded() and not stalled:
         return "done"
     if state.get("attempts", 0) >= settings.extraction_max_retries:
         logger.info(
-            "Out of repair attempts; %d field(s) stay ungrounded.", len(flags.ungrounded())
+            "Out of repair attempts; %d field(s) ungrounded, %d group(s) still failing.",
+            len(flags.ungrounded()),
+            len(stalled),
         )
         return "done"
     return "repair"
@@ -531,10 +607,23 @@ def extract(
             "sections": {},
             "citations": [],
             "errors": [],
+            "failures": {},
             "attempts": 0,
         }
     )
     assessment = final.get("assessment")
+
+    # Every group failing is not a partial result, it is no result. Returning an
+    # empty seven-section document would be indistinguishable from a recording
+    # in which the clinician said nothing at all, and the caller would have no
+    # way to tell that the provider, rather than the audio, was the problem.
+    stalled = {g: r for g, r in (final.get("failures") or {}).items() if r}
+    if stalled and len(stalled) == len(GROUP_SPECS):
+        raise ExtractionUnavailable(
+            "No section could be extracted; every model call failed. "
+            + "; ".join(f"{group}: {reason}" for group, reason in sorted(stalled.items()))
+        )
+
     if assessment is None:
         raise ExtractionFailed("; ".join(final.get("errors") or ["No assessment produced."]))
     return ExtractionResult(
