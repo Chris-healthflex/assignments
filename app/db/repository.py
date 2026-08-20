@@ -1,127 +1,141 @@
-"""Save and retrieve assessments (D4).
-
-The repository owns every BSON concern - ObjectId conversion, date range
-construction, sort order - so the API layer deals only in strings and Pydantic
-models.
-
-A malformed id is treated as "not found" rather than an error. A caller who
-sends a bad id gets 404, not 500: from the outside those are the same
-situation, and raising would turn a client mistake into a server fault.
-"""
-
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from bson import ObjectId
 from bson.errors import InvalidId
+from pymongo import AsyncMongoClient, DESCENDING
+from pymongo.errors import PyMongoError
 
-from app.db import client as db_client
-from app.db.models import AssessmentMetadata, StoredAssessment, from_document, to_document
-from app.schemas.first_assessment import FirstAssessment
+from app.config import Settings
+from app.schemas.api import ExtractionMeta, StoredAssessment
+from app.schemas.assessment import FirstAssessment
 
 logger = logging.getLogger(__name__)
 
-#: Guards against an unbounded listing when a caller omits a limit.
-DEFAULT_LIMIT = 50
-MAX_LIMIT = 500
+
+class StorageError(RuntimeError):
+    """Raised when the database is unreachable or rejects an operation."""
 
 
-def _to_object_id(assessment_id: str) -> ObjectId | None:
-    try:
-        return ObjectId(assessment_id)
-    except (InvalidId, TypeError, ValueError):
-        return None
+class InvalidAssessmentId(ValueError):
+    """Raised when a caller-supplied id is not a valid ObjectId."""
 
 
-def _as_utc(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+class AssessmentRepository:
+    """Thin data-access layer around one collection."""
 
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._client: AsyncMongoClient | None = None
 
-def _date_query(
-    date_from: datetime | None, date_to: datetime | None
-) -> dict[str, Any]:
-    """Build the createdAt filter shared by listing and counting.
+    async def connect(self) -> None:
+        self._client = AsyncMongoClient(
+            self._settings.mongodb_uri,
+            serverSelectionTimeoutMS=self._settings.mongodb_timeout_ms,
+            tz_aware=True,
+        )
+        try:
+            await self._collection.create_index([("createdAt", DESCENDING)])
+        except PyMongoError as exc:
+            logger.warning("Could not ensure createdAt index: %s", exc)
 
-    ``date_to`` is widened to the end of the day when a bare date is given,
-    because "everything up to the 20th" is what a clinician means; an
-    exclusive bound would silently omit that day's work.
-    """
-    date_range: dict[str, datetime] = {}
-    if date_from is not None:
-        date_range["$gte"] = _as_utc(date_from)
-    if date_to is not None:
-        upper = _as_utc(date_to)
-        if (upper.hour, upper.minute, upper.second, upper.microsecond) == (0, 0, 0, 0):
-            upper = upper.replace(hour=23, minute=59, second=59, microsecond=999999)
-        date_range["$lte"] = upper
-    return {"createdAt": date_range} if date_range else {}
+    async def close(self) -> None:
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
 
+    @property
+    def _collection(self):
+        if self._client is None:
+            raise StorageError("Repository used before connect() was called.")
+        return self._client[self._settings.mongodb_db][self._settings.mongodb_collection]
 
-async def save(
-    assessment: FirstAssessment,
-    metadata: AssessmentMetadata | None = None,
-    *,
-    created_at: datetime | None = None,
-) -> str:
-    """Insert an assessment and return its id as a string."""
-    document = to_document(assessment, metadata, created_at=created_at)
-    result = await db_client.get_collection().insert_one(document)
-    logger.info("Saved assessment %s", result.inserted_id)
-    return str(result.inserted_id)
+    async def ping(self) -> bool:
+        try:
+            await self._client.admin.command("ping") 
+            return True
+        except (PyMongoError, AttributeError) as exc:
+            logger.warning("Mongo ping failed: %s", exc)
+            return False
 
+    async def save(
+        self, assessment: FirstAssessment, meta: ExtractionMeta | None = None
+    ) -> StoredAssessment:
+        doc: dict[str, Any] = {
+            "createdAt": datetime.now(timezone.utc),
+            "assessment": assessment.model_dump(),
+            "meta": meta.model_dump() if meta else None,
+        }
+        try:
+            result = await self._collection.insert_one(doc)
+        except PyMongoError as exc:
+            raise StorageError(f"Failed to save assessment: {exc}") from exc
 
-async def get(assessment_id: str) -> StoredAssessment | None:
-    """Fetch one assessment. Returns None for missing *or* malformed ids."""
-    object_id = _to_object_id(assessment_id)
-    if object_id is None:
-        logger.info("Rejected malformed assessment id %r", assessment_id)
-        return None
+        return StoredAssessment(
+            id=str(result.inserted_id),
+            createdAt=doc["createdAt"],
+            assessment=assessment,
+            meta=meta,
+        )
 
-    document = await db_client.get_collection().find_one({"_id": object_id})
-    return from_document(document) if document else None
+    async def get(self, assessment_id: str) -> Optional[StoredAssessment]:
+        try:
+            oid = ObjectId(assessment_id)
+        except (InvalidId, TypeError) as exc:
+            raise InvalidAssessmentId(str(exc)) from exc
 
+        try:
+            doc = await self._collection.find_one({"_id": oid})
+        except PyMongoError as exc:
+            raise StorageError(f"Failed to read assessment: {exc}") from exc
 
-async def list_assessments(
-    *,
-    date_from: datetime | None = None,
-    date_to: datetime | None = None,
-    limit: int = DEFAULT_LIMIT,
-    skip: int = 0,
-) -> list[StoredAssessment]:
-    """List assessments newest first, optionally filtered by creation date.
+        return self._to_model(doc) if doc else None
 
-    Newest first, because a clinician opening the list wants today's work.
-    """
-    query = _date_query(date_from, date_to)
+    async def list(
+        self,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> tuple[int, list[StoredAssessment]]:
+        query: dict[str, Any] = {}
+        if date_from or date_to:
+            window: dict[str, datetime] = {}
+            if date_from:
+                window["$gte"] = date_from
+            if date_to:
+                window["$lte"] = date_to
+            query["createdAt"] = window
 
-    limit = max(1, min(limit, MAX_LIMIT))
+        try:
+            total = await self._collection.count_documents(query)
+            cursor = (
+                self._collection.find(query)
+                .sort("createdAt", DESCENDING)
+                .skip(skip)
+                .limit(limit)
+            )
+            docs = [d async for d in cursor]
+        except PyMongoError as exc:
+            raise StorageError(f"Failed to list assessments: {exc}") from exc
 
-    cursor = (
-        db_client.get_collection()
-        .find(query)
-        .sort("createdAt", -1)
-        .skip(max(0, skip))
-        .limit(limit)
-    )
-    return [from_document(document) async for document in cursor]
+        return total, [self._to_model(d) for d in docs]
 
-
-async def count(
-    *, date_from: datetime | None = None, date_to: datetime | None = None
-) -> int:
-    """Total matching the same filter, so a listing can report what it paged."""
-    return await db_client.get_collection().count_documents(
-        _date_query(date_from, date_to)
-    )
-
-
-async def delete(assessment_id: str) -> bool:
-    """Remove an assessment. Not exposed by the API; used to clean up tests."""
-    object_id = _to_object_id(assessment_id)
-    if object_id is None:
-        return False
-    result = await db_client.get_collection().delete_one({"_id": object_id})
-    return result.deleted_count > 0
+    @staticmethod
+    def _to_model(doc: dict[str, Any]) -> StoredAssessment:
+        created = doc.get("createdAt")
+        if created is not None and created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return StoredAssessment(
+            id=str(doc["_id"]),
+            createdAt=created,
+            assessment=FirstAssessment.model_validate(doc.get("assessment") or {}),
+            meta=(
+                ExtractionMeta.model_validate(doc["meta"])
+                if doc.get("meta")
+                else None
+            ),
+        )
