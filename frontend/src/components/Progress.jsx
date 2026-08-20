@@ -43,6 +43,12 @@ export function Progress({ filename, onCancel }) {
         <i />
       </div>
       <p className="note">{stage.note}</p>
+      <p className="firstrun">
+        <b>First run on this machine?</b> Whisper downloads about 1.5 GB of model
+        weights before it can start, so allow roughly 3 minutes in total. The
+        weights are kept, and the transcript is cached against the audio, so
+        later recordings skip the download and this exact file returns at once.
+      </p>
       <p className="clock">{elapsed(seconds)} elapsed</p>
       {onCancel && (
         <button type="button" className="ghost" onClick={onCancel}>

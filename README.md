@@ -12,14 +12,20 @@ the environment, verifies it, starts the server, and opens the review interface
 and API documentation in your browser.
 
 Setup comes first below, both as that one command and as the individual commands
-it runs. What the system produces, how it works and why it is built this way all
-follow after it.
+it runs. Straight after it, [What this achieves](#what-this-achieves) maps each
+of the six deliverables to the exact function that implements it and the command
+that demonstrates it. How the pipeline works and why it is built this way follow
+after that.
 
 ---
 
 ## Quick start
 
 You need **Python 3.14** installed. The scripts handle everything else.
+
+You do **not** need Node, ffmpeg or Docker. The React bundle is committed to
+`app/static`, so the interface runs from a clone with no `npm install`, and
+faster-whisper decodes audio through its bundled PyAV.
 
 Two values have to come from you, both free:
 
@@ -132,9 +138,13 @@ Place the consultation recording at `./clinical_assessment.wav`, then:
 
 ```bash
 python -m tests.run_pipeline clinical_assessment.wav          # in-process
-python -m tests.run_pipeline clinical_assessment.wav --http   # through the API
+python -m tests.run_pipeline clinical_assessment.wav --http   # needs the server running
 python -m tests.run_pipeline clinical_assessment.wav > out.json
 ```
+
+`--http` uploads to a service that must already be running, in another terminal
+or via `run.bat`. Without it the script drives the same stages in process and
+needs no server.
 
 **Three things to expect on a first run:**
 
@@ -152,6 +162,38 @@ The recording is **not** in this repository. The brief supplies it as an input
 file and asks for code, tests and this README back, so audio is in `.gitignore`:
 a real patient consultation does not belong in a shared repository.
 
+### If something goes wrong
+
+`run.bat check` (or `python -m app.doctor`) diagnoses most of this in one screen
+before the server starts. The rest:
+
+| Symptom | Cause and fix |
+|---|---|
+| `[FAIL] No Python interpreter found` | Install 3.14 from [python.org](https://python.org/downloads/) and tick "Add python.exe to PATH". On Windows a bare `python` may be the Store stub, which is why the script prefers the `py` launcher |
+| `No .env existed, so .env.example was copied` | Working as intended: it stopped instead of starting a server that would fail on the first upload. Fill in the two values and run again |
+| `address already in use` | Something else holds 8000. `set PORT=8080 && run.bat`, and every printed address follows |
+| `/health` reports `"mongo": false` | Wrong `MONGODB_URI`, or an Atlas M0 cluster that auto-paused while idle and is cold-starting past the 5-second `MONGODB_TIMEOUT_MS`. Try again once |
+| `429 RESOURCE_EXHAUSTED` from Gemini | The free tier allows 5 requests per minute. The client already paces itself to 4; on a shared key, lower `EXTRACTION_REQUESTS_PER_MINUTE` or wait a minute |
+| The first upload seems to hang | Whisper is downloading ~1.5 GB. `run.bat warm` does that up front instead |
+| No browser tabs opened | `OPEN_BROWSER=0` is set, or the server took longer than 90 seconds to answer. The addresses are printed in the terminal either way |
+| `bad interpreter: ^M` running `./run.sh` | The clone converted line endings. [`.gitattributes`](.gitattributes) pins `.sh` to LF, so re-clone rather than hand-fixing |
+
+### Changing the interface
+
+The built bundle in `app/static` is committed so a clone needs no Node. To
+change the UI you do need it:
+
+```bash
+cd frontend
+npm install
+npm run dev      # hot reload on :5173, proxying the API on :8000
+npm run build    # rewrites app/static, which is what the service serves
+npm test         # 58 logic and render checks
+```
+
+`npm run build` must be re-run and the result committed, or the served interface
+will not match the source.
+
 ---
 
 ## What this achieves
@@ -159,14 +201,27 @@ a real patient consultation does not belong in a shared repository.
 **All six deliverables, working end to end against the real recording and a live
 MongoDB Atlas cluster.**
 
-| # | Deliverable | Where |
+| # | Deliverable | Exactly where it lives |
 |---|---|---|
-| D1 | FastAPI service | [`app/main.py`](app/main.py): 4 endpoints + `/health` |
-| D2 | Whisper transcription module | [`app/transcription.py`](app/transcription.py): local, word-level, disk-cached |
-| D3 | LangGraph agent with Pydantic output | [`app/extraction.py`](app/extraction.py): 3-node fan-out, grounding, repair loop |
-| D4 | MongoDB models, connection, save/retrieve | [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
-| D5 | Test script printing JSON | [`tests/run_pipeline.py`](tests/run_pipeline.py) |
-| D6 | README with setup and design decisions | this file |
+| **D1** | FastAPI service, all 4 endpoints working | [`parse_assessment`](app/main.py#L246) · [`create_assessment`](app/main.py#L312) · [`list_assessments`](app/main.py#L328) · [`get_assessment`](app/main.py#L351) · [`health`](app/main.py#L224), all in [`app/main.py`](app/main.py) |
+| **D2** | Whisper transcription module, WAV to text | [`transcribe()`](app/transcription.py#L146) in [`app/transcription.py`](app/transcription.py), local and word-level |
+| **D3** | LangGraph agent with `FirstAssessment` Pydantic output | [`build_graph()`](app/extraction.py#L631) and [`extract()`](app/extraction.py#L661) in [`app/extraction.py`](app/extraction.py); the anti-hallucination check is [`ground()`](app/extraction.py#L548) |
+| **D4** | MongoDB models, connection, save/retrieve | [`get_client()`](app/db.py#L43) · [`save_assessment()`](app/db.py#L140) · [`get_assessment()`](app/db.py#L148) · [`list_assessments()`](app/db.py#L175) in [`app/db.py`](app/db.py); models are [`FirstAssessment`](app/schemas.py#L194) and [`StoredAssessment`](app/schemas.py#L370) |
+| **D5** | Test script: run pipeline on provided WAV, print JSON | [`tests/run_pipeline.py`](tests/run_pipeline.py#L450), narration on stderr and the contract document on stdout |
+| **D6** | README: setup instructions and design decisions | this file: [setup](#quick-start), then [How it works](#how-it-works) and [What changed along the way](#what-changed-along-the-way-and-why) |
+
+**Seeing all six at once.** Put the recording at `./clinical_assessment.wav` and
+run one command:
+
+```bash
+python -m tests.run_pipeline clinical_assessment.wav          # or: run.bat test
+```
+
+It transcribes with Whisper (**D2**), runs the LangGraph agent (**D3**), checks
+the seven-section contract, scores every field, saves to MongoDB and reads it
+back (**D4**), and prints the `FirstAssessment` JSON (**D5**). Add `--http` and
+the identical work goes through the running service instead, which exercises all
+four endpoints and the rejection paths (**D1**).
 
 ### A full run, through the live API
 
@@ -258,6 +313,102 @@ send the graph back through `repair`, which re-asks only the offending group and
 names the bad quote. After two attempts, whatever is still unverified is reported
 rather than quietly kept.
 
+### The transcription module
+
+[`app/transcription.py`](app/transcription.py) is a WAV in, text out module, and
+two things make it more than a wrapper around faster-whisper.
+
+**It keeps the probabilities.** [`transcribe()`](app/transcription.py#L146) runs
+with `word_timestamps=True` and returns a
+[`TranscriptionResult`](app/schemas.py#L416): the full text, timed segments, and
+a probability for every individual word. Throwing those away is what makes a
+clinical pipeline dangerous, because "forty degrees" and "fourteen degrees" sound
+alike and the agent will extract the wrong one with total confidence. Keeping
+them is what later lets the service say *this measurement came from a span
+Whisper was 5% sure of*.
+
+**It caches to disk.** The cache key is a hash of the audio bytes *plus* the
+decode settings, so changing `WHISPER_MODEL` invalidates it rather than silently
+serving a stale transcript. Transcription is the slow, deterministic, expensive
+stage and prompt-tuning is the fast, iterative one; without the cache every
+prompt tweak would cost another three minutes of CPU.
+
+| | |
+|---|---|
+| Entry point | [`transcribe(audio_path, use_cache=True)`](app/transcription.py#L146) |
+| Returns | [`TranscriptionResult`](app/schemas.py#L416): text, segments, per-word confidence |
+| Model | `medium` on CPU by default, `int8` (`float16` on CUDA) |
+| Cache | `.cache/transcripts/<hash>.json`, plus a readable `.txt` sibling |
+| Formats | WAV, MP3, M4A, FLAC, OGG, WebM, decoded through the bundled PyAV, so no separate ffmpeg install |
+| Run it alone | `python -m app.transcription clinical_assessment.wav` |
+
+Run alone it also prints the ten least confident words, which is the fastest way
+to see what the recording is going to cause trouble with. On the sample that list
+is headed by the 5% `knee` described under [Problems](#problems).
+
+The hosted-API backend deliberately raises `NotImplementedError`: this is patient
+audio, and shipping it to a third party is a decision for a compliance review
+rather than a default in a config file.
+
+### The extraction agent
+
+[`app/extraction.py`](app/extraction.py) is a LangGraph `StateGraph`, compiled by
+[`build_graph()`](app/extraction.py#L631) and driven by
+[`extract()`](app/extraction.py#L661), which takes a transcript and returns an
+[`ExtractionResult`](app/extraction.py#L650) holding a `FirstAssessment` and its
+per-field evidence.
+
+| Node | Line | What it does |
+|---|---|---|
+| `extract_subjective` | [313](app/extraction.py#L313) | Clinical history, chief complaint, subjective findings |
+| `extract_objective` | [313](app/extraction.py#L313) | The measured values |
+| `extract_plan` | [313](app/extraction.py#L313) | Goals, recommendation, advice |
+| `assemble` | [333](app/extraction.py#L333) | **Builds the `FirstAssessment`** |
+| `ground` | [350](app/extraction.py#L350) | Verifies every quote against the transcript |
+| `repair` | [421](app/extraction.py#L421) | Re-asks only the group that failed or invented |
+| *(routing)* | [460](app/extraction.py#L460) | Conditional edge: repair again, or stop |
+
+The three `extract_*` nodes are generated from one factory over
+[`GROUP_SPECS`](app/extraction.py#L175) and all fan out from `START` at once.
+They are the "three concurrent calls" described above; each is a separate
+structured-output call returning its sections plus a list of
+[`Citation`](app/extraction.py#L92) objects.
+
+**Where the contract object is produced.** One line, in `assemble`:
+
+```python
+assessment = FirstAssessment.model_validate(
+    {k: v for k, v in sections.items() if k in SECTIONS}
+)
+```
+
+Nothing else in the graph constructs it. A section whose call failed simply stays
+at its schema default, which keeps the document valid rather than half-formed.
+
+**The state is typed, and its reducers matter.**
+[`ExtractionState`](app/extraction.py#L285) is a `TypedDict` whose fields carry
+LangGraph reducers, because the three group nodes write concurrently. `sections`,
+`citations` and `failures` merge by key rather than appending, which is what lets
+a repair *replace* a group's earlier answer instead of stacking a second one on
+top of it. Citations are keyed by the group that produced them, so a field is
+only ever checked against quotes from the call that filled it.
+
+**Failure is distinguished from silence.** If every group call fails,
+[`extract()`](app/extraction.py#L661) raises
+[`ExtractionUnavailable`](app/extraction.py#L80) rather than returning an empty
+seven-section document, because an empty document is indistinguishable from a
+recording in which the clinician said nothing. The API turns that into a `502`,
+not a `422`: nothing was wrong with the request.
+
+| | |
+|---|---|
+| Entry point | [`extract(transcript, transcription)`](app/extraction.py#L661) |
+| Returns | [`ExtractionResult`](app/extraction.py#L650): `assessment` + `flags` |
+| Contract model | [`FirstAssessment`](app/schemas.py#L194), validated in [`assemble_node`](app/extraction.py#L333) |
+| Model | `gemini-3.1-flash-lite`, temperature 0, paced to 4 requests/minute |
+| Prompt | [`SYSTEM_PROMPT`](app/extraction.py#L130), plus a per-group instruction |
+| Grounding | [`ground()`](app/extraction.py#L548), plain Python, no model involved |
+
 ### The schema contract
 
 The brief's three rules are enforced as code, not convention:
@@ -277,6 +428,62 @@ Two details worth naming:
   output the *only* possible output.
 - **`recommendation` is singular but holds an array.** That is the frontend's
   spelling. "Fixing" it would be a renamed key, which the brief forbids.
+
+### MongoDB: models, connection, save and retrieve
+
+[`app/db.py`](app/db.py) holds the persistence layer. Nothing in it reaches
+inside `assessment`.
+
+**The document is an envelope, and the contract sits untouched inside it.**
+[`StoredAssessment`](app/schemas.py#L370) wraps ids, a timestamp, the transcript
+and the confidence metadata *around* an untouched
+[`FirstAssessment`](app/schemas.py#L194):
+
+```
+{ _id, createdAt, audioFilename, transcript, flags, assessment }
+                                                    └─ the contract, exactly
+```
+
+That separation is the whole point. The brief forbids extra fields inside the
+contract, so everything we need to keep alongside it lives outside it, and no
+code path in this module touches the sub-document. The exact-match guarantee
+therefore does not depend on the database round trip preserving it; it holds
+because nothing reaches in.
+
+**Connection.** [`get_client()`](app/db.py#L43) lazily builds one process-wide
+`AsyncMongoClient`. Constructing it does not connect: the first operation does,
+which is why a wrong URI surfaces as a timeout on the first save rather than at
+import. `serverSelectionTimeoutMS` is deliberately short, so an unreachable
+cluster fails the request in seconds instead of hanging a worker for the driver's
+30-second default. `tz_aware=True` matters more than it looks: without it BSON
+returns naive datetimes and comparing one to the aware `createdAt` raises at
+runtime. [`ensure_indexes()`](app/db.py#L83) runs once at startup and is
+idempotent; [`close()`](app/db.py#L97) drops the client so the next call rebuilds
+it.
+
+**The four operations.**
+
+| Operation | Line | Notes |
+|---|---|---|
+| [`save_assessment()`](app/db.py#L140) | 140 | Inserts and returns the new id as a string |
+| [`get_assessment()`](app/db.py#L148) | 148 | A malformed id returns `None`, not an error: "no such assessment" and "that could never be one" both mean 404 |
+| [`list_assessments()`](app/db.py#L175) | 175 | Newest first, optional day filter, `skip`/`limit` |
+| [`ping()`](app/db.py#L72) | 72 | Never raises, because a health check that 500s is useless |
+
+**Conversion is explicit.** [`to_document()`](app/db.py#L108) drops `id` because
+Mongo owns it, and writes `createdAt` as a real datetime rather than a string so
+range queries work. It does *not* write the combined confidence score: only the
+three raw signals are stored and the score is recomputed on read, because a
+derived value in a database goes stale the moment the scoring rule changes.
+[`from_document()`](app/db.py#L123) moves `_id` into `id` and validates strictly,
+so a document carrying unknown keys raises rather than quietly dropping them.
+
+**The index matches the query exactly.**
+[`LIST_INDEX`](app/db.py#L37) is compound and descending on
+`(createdAt, _id)`, the same shape as the list query's sort. Including the `_id`
+tie-break is what lets `skip`/`limit` paginate without an in-memory sort. The day
+filter uses a half-open range [`_day_range()`](app/db.py#L163), because BSON keeps
+milliseconds and an inclusive upper bound genuinely drops documents.
 
 ### The four endpoints
 
@@ -410,6 +617,11 @@ Three changes fixed it:
   anything, because the tabs are launched from the line above `uvicorn` and the
   port is not bound yet at that point. It treats a `503` as ready, since a
   service correctly reporting that MongoDB is unreachable is worth looking at.
+- **Line endings are pinned per file type.** [`.gitattributes`](.gitattributes)
+  forces LF on `.sh` and CRLF on `.bat` rather than leaving it to each machine's
+  `core.autocrlf`. A clone on Windows would otherwise hand macOS a `run.sh` with
+  CRLF endings, which bash rejects as `bad interpreter: ^M`, a message pointing
+  nowhere near the cause.
 - **The scripts share their logic through Python, not through two shells.**
   Preflight lives in [`app/doctor.py`](app/doctor.py) and tab-opening in
   [`app/browser.py`](app/browser.py), so `run.bat` and `run.sh` stay thin
@@ -491,6 +703,9 @@ The confidence data is not much use if nobody can see it. `/ui/` is a React app
 ([`frontend/`](frontend/)) served by the API itself from `app/static/`, same
 origin, so there is no CORS configuration anywhere. **The built bundle is
 committed**, so a clone runs the UI with no `npm install`.
+[`vite.config.js`](frontend/vite.config.js) sets `base: "/ui/"` and builds
+straight into `app/static`: without that base the asset URLs come out absolute
+from `/` and 404 behind the mount point.
 
 Selecting any field scrolls the transcript to the words it came from,
 highlighted, and shows the three signals behind its score. Flagged fields are
@@ -499,6 +714,99 @@ collects them worst-first. Only those two states get colour, so they cannot be
 missed. A section lost to a failed call says so explicitly rather than rendering
 as an ordinary blank.
 
+### The end-to-end script
+
+[`tests/run_pipeline.py`](tests/run_pipeline.py) is the script the brief asks
+for: run the pipeline on the provided recording and print the JSON. It is driven
+by hand rather than by pytest, because it needs a real API key, a real database
+and three minutes of CPU.
+
+```bash
+python -m tests.run_pipeline clinical_assessment.wav            # in process
+python -m tests.run_pipeline clinical_assessment.wav --http     # through the API
+python -m tests.run_pipeline clinical_assessment.wav > out.json # just the document
+python -m tests.run_pipeline --transcript transcript.txt --no-save
+```
+
+**Narration goes to stderr, the contract JSON to stdout.** That is what makes the
+third form work: `> out.json` captures a clean `FirstAssessment` document while
+the progress report still appears in the terminal.
+
+Six stages, each printing what it proved
+([`run_direct()`](tests/run_pipeline.py#L159)):
+
+```
+1. Transcription   ok  clinical_assessment.wav: 105.5s, 276 words, language 'en'
+2. Extraction      ok  model gemini-3.1-flash-lite
+3. Contract        ok  exactly the 7 required sections, in order, no nulls, arrays intact
+4. Confidence          45 fields with evidence, overall 71%, 17 below 60%
+5. MongoDB         ok  saved, read back byte for byte, date filter includes and excludes
+6. FirstAssessment     the document, on stdout
+```
+
+**What lands on stdout.** The bare contract, nothing else. Real output from the
+run above, trimmed only where an array repeats:
+
+```jsonc
+{
+  "clinicalDetails": {
+    "clinicalHistory": "involved in a road traffic accident resulting in a left tibial condle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed",
+    "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain",
+    "duration": "eight months"
+  },
+  "subjectiveAssessments": [
+    { "testName": "Surgical scar", "conclusion": "healed surgical scar was noted on the medial aspect of the knee" },
+    { "testName": "Knee flexion", "conclusion": "restricted and painful knee flexion on over pressure" }
+    // ... 5 more
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      { "testName": "knee flexion", "unitName": "degrees", "value": "", "left": "124", "right": "130", "comments": "" },
+      { "testName": "knee extension", "unitName": "degrees", "value": "", "left": "20", "right": "5", "comments": "knee gig" }
+      // ... 3 more
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [
+    { "goalName": "restoring knee extension", "goalCategory": "", "unitName": "", "value": "", "targetDate": "" }
+    // ... 6 more
+  ],
+  "recommendation": [
+    { "sessionType": "Physiotherapy", "sessionFrequency": "once weekly for four sessions" }
+  ],
+  "patientAdvice": { "adviceDetails": "" }
+}
+```
+
+Three things in that document are worth pointing at. Every `targetDate` is `""`,
+because the recording states no dates and a guessed one would be an invented
+clinical date. `patientAdvice` is empty for the same reason: the clinician gave
+none, and empty is the correct answer. And `tests[1]` is the misheard measurement
+described under [Problems](#problems): the value `"5"` is returned, but the
+`comments` field carries the mangled `"knee gig"` beside it and the field comes
+back flagged at 0.05 rather than silently trusted.
+
+The real file is 3.4 KB and parses as valid JSON; `python -m tests.run_pipeline
+clinical_assessment.wav > out.json` is the form that produces it cleanly.
+
+**Stage 3 checks the serialised JSON, not the model.**
+[`check_contract()`](tests/run_pipeline.py#L84) verifies exact keys in order, no
+nulls where a string belongs, arrays that stayed arrays, and that re-validating
+the document reproduces it byte for byte. Checking the model object instead would
+prove only that Pydantic agrees with itself.
+
+**`--http` runs the identical work through the live service**
+([`run_http()`](tests/run_pipeline.py#L306)), which is what proves the four
+endpoints, the 422 and the persistence layer agree with each other rather than
+merely working alone. It adds a stage that asserts the rejection paths: a PDF is
+refused with 415, an empty file with 400, a malformed and an unknown id with 404,
+and an unparseable date with 422.
+
+**Exit code 0 if every stage passed, 1 if one failed.** Low confidence is
+deliberately *not* a failure, because a 422 is the service working correctly. An
+extraction that produced nothing at all is, because that is indistinguishable
+from success.
+
 ### Tests that try to break it
 
 ```bash
@@ -506,6 +814,20 @@ pytest                    # 142 passed, 2 skipped; 144 once a transcript is cach
 run.bat test              # the same, without activating the venv first
 cd frontend && npm test   # 58 checks
 ```
+
+| File | Tests | What it covers |
+|---|---|---|
+| [`tests/test_schema.py`](tests/test_schema.py) | 50 | The exact-match contract: key order, no nulls, arrays that stay arrays |
+| [`tests/test_api.py`](tests/test_api.py) | 39 | All four endpoints, the shape of the 422, every rejection path |
+| [`tests/test_extraction.py`](tests/test_extraction.py) | 27 | Grounding and the repair loop, with the model stubbed |
+| [`tests/test_db.py`](tests/test_db.py) | 17 | Save, retrieve, and the date filter |
+| [`tests/test_transcription.py`](tests/test_transcription.py) | 11 | Confidence conversion and the cache. The 2 that skip need a cached transcript |
+| [`tests/run_pipeline.py`](tests/run_pipeline.py) | n/a | The end-to-end script, run by hand rather than by pytest |
+
+Collection settings are in [`pytest.ini`](pytest.ini); the frontend checks are
+[`check-logic.mjs`](frontend/scripts/check-logic.mjs) and
+[`check-render.mjs`](frontend/scripts/check-render.mjs), run by
+[`npm test`](frontend/package.json).
 
 Python tests run with **no API key, no Whisper and no Mongo**. The model is
 stubbed, because what needs proving is not "does Gemini work" but "does the
@@ -522,18 +844,14 @@ the driver would only prove the mock behaves like the mock.
 | `test_an_unavailable_section_is_a_422_even_when_the_rest_scored_well` | That a high score cannot mask a missing section. |
 | `test_the_contract_survives_the_round_trip_byte_for_byte` | Exact-match through save and load. |
 
-[`tests/run_pipeline.py`](tests/run_pipeline.py) is the end-to-end script. It
-checks the **serialised JSON**, not the model: exact keys in order, no nulls,
-arrays intact, and that re-validating the document reproduces it byte-identically.
-Narration goes to stderr and the contract JSON to stdout, so redirecting produces
-a clean document.
-
 ---
 
 ## Configuration
 
-Every setting has a working default except the two secrets. See
-[`.env.example`](.env.example).
+Every setting has a working default except the two secrets. The definitions
+live in [`app/config.py`](app/config.py) as a `pydantic-settings` model, so an
+out-of-range or misspelled value fails at startup rather than halfway through a
+request. [`.env.example`](.env.example) is the file to copy.
 
 `run.bat check` (or `python -m app.doctor`) validates this configuration before
 the server starts: an unset key, an unreachable database or a half-finished

@@ -272,6 +272,19 @@ main {
   max-width: 520px;
   margin: 0 auto;
 }
+.progress .firstrun {
+  color: var(--faint);
+  font-size: 12.5px;
+  line-height: 1.55;
+  max-width: 520px;
+  margin: 14px auto 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.progress .firstrun b {
+  color: var(--muted);
+}
 .progress .clock {
   font-family: var(--mono);
   font-size: 13px;
