@@ -14,10 +14,10 @@ WAV upload → Whisper transcription → LangGraph extraction
 |---|---|
 | Confidence | **0.90** (threshold 0.55) |
 | Values rejected as ungrounded | **0** |
-| Dates invented | **0** — the recording contains none, and all 6 `targetDate` fields are empty |
-| Objective measurements captured | 8, all matching the audio |
-| End to end | ~141 s (29 s transcription, 105 s extraction, **0.03 s** grounding) |
-| Tests | **163 passing**, no models or database server required |
+| Dates invented | **0** — the recording contains none, and every `targetDate` is empty |
+| Measurements captured | 4 of the 5 stated; the 5th is **flagged as missed**, not silently dropped |
+| End to end | ~165 s (29 s transcription, 135 s extraction, **0.03 s** verification) |
+| Tests | **186 passing**, no models or database server required |
 
 A full run is committed at [`data/sample_output.json`](data/sample_output.json).
 
@@ -82,6 +82,9 @@ To use a hosted model instead, install the extras and set two variables:
 pip install -r requirements-optional.txt
 ```
 
+> **If you also want the `openai-whisper` backend**, that one package needs a
+> different command — see [Known limitations](#known-limitations).
+
 ```ini
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-...
@@ -141,9 +144,14 @@ when working on extraction prompts.
 uvicorn app.main:app --reload
 ```
 
-Then open **http://localhost:8000/docs**. Swagger UI is this project's
-interface — you can upload the WAV and exercise all four endpoints from the
-browser.
+Then open **http://localhost:8000** for the clinician interface: upload a
+recording, watch the pipeline run, review the record with flagged fields
+highlighted, export it as a PDF, and sign it off. Blank fields the recording
+could not supply are editable in place, and anything typed is marked as
+clinician-entered rather than extracted.
+
+**http://localhost:8000/docs** is the same API in Swagger, for exercising the
+four endpoints directly.
 
 ---
 
@@ -156,6 +164,7 @@ browser.
 | EP3 | `GET /assessments/{id}` | Retrieve by id |
 | EP4 | `GET /assessments` | List all, filterable by date |
 | — | `GET /health` | Dependency reachability |
+| — | `GET /` | Clinician interface (static, no build step) |
 
 ### EP1 — parse
 
@@ -316,7 +325,21 @@ transcript cannot differ between backends because of how the audio was decoded.
 
 The default is `faster-whisper` because it needs no torch and no ffmpeg and runs
 around 4× faster on CPU. `WHISPER_BACKEND=openai` runs the reference
-implementation for anyone who wants the literal package the brief names.
+implementation for anyone who wants the literal package the brief names —
+verified on the supplied recording at 105.5 s of audio in 15.2 s, 24 segments,
+and still without ffmpeg, because the decoded array goes straight to the model.
+
+Installing that one package needs a specific command:
+
+```bash
+pip install "setuptools<81"
+pip install --no-build-isolation openai-whisper==20240930
+```
+
+A plain `pip install` fails: `openai-whisper`'s build imports `pkg_resources`,
+which setuptools removed in version 81, and pip's isolated build environment
+supplies its own current setuptools regardless of what the virtualenv holds —
+so the pin only takes effect with `--no-build-isolation`.
 
 ### No ffmpeg
 
@@ -389,13 +412,18 @@ Both are synchronous and CPU/GPU bound. Calling them inline would block the
 event loop for the full two-minute pipeline and stall every other request —
 including `/health`, which is what you would be checking when things seem stuck.
 
-### No custom UI, deliberately
+### The interface came last, on purpose
 
-The brief lists six deliverables and none is a UI, and it states the JSON is
-*"the live format consumed by Stance Health's clinician frontend"* — one already
-exists. Swagger UI at `/docs` lets a reviewer upload the WAV and exercise every
-endpoint at zero cost, so endpoint descriptions, response models, documented
-error responses and a worked example are treated as part of the deliverable.
+The brief lists six deliverables and none is a UI, so `/docs` was the only
+interface until D1–D6 were complete. The interface was then built because the
+anti-hallucination work is invisible in raw JSON: a reviewer cannot see the
+difference between *not stated*, *discarded* and *possibly missed* in a wall of
+keys, and those distinctions are the point of the project.
+
+It is static HTML, CSS and JS — no framework, no bundler, no build step — so it
+adds no dependency and can be read without a toolchain. PDF export is
+`window.print()` against a print stylesheet, which gives a vector PDF with
+selectable text and ships nothing.
 
 ---
 
@@ -519,7 +547,17 @@ fields are often blank.
 
 **Semantic misassignment is not caught.** Grounding proves a value came from the
 transcript, not that it landed in the right field. Text correctly quoted but
-filed under the wrong section passes verification.
+filed under the wrong section passes verification. On the supplied recording
+this shows as mild duplication: the "Pain" finding repeats the chief complaint,
+and one measurement also appears as a subjective finding.
+
+**Omissions are detected but not repaired.** On the supplied recording the model
+drops "hip external rotation of 60 degrees bilaterally" entirely — 4 of the 5
+stated measurements reach the record. Grounding is one-sided and cannot see
+this, so a separate check compares the numbers spoken against the numbers
+captured and flags the difference as `possibly_missed`. It reports the gap and
+never fills it: deciding which test a loose "60" belonged to is exactly the
+guess this pipeline refuses to make.
 
 **Speaker attribution is not modelled.** The recording is transcribed as one
 stream, so "the patient reports" versus "the clinician observed" relies on the

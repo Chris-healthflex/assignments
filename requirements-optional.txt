@@ -1,11 +1,24 @@
 # Optional extras. None of these are needed for the default pipeline.
 
+# ---------------------------------------------------------------------------
 # Alternative Whisper backend: the literal `openai-whisper` package, for
 # reviewers who want the reference implementation. Enable with
-# WHISPER_BACKEND=openai. Pulls in torch (~250 MB).
+# WHISPER_BACKEND=openai. Verified working on the supplied recording:
+# 105.5s of audio in 15.2s, 24 segments, and still no ffmpeg required.
+#
+# INSTALL THIS ONE AS:
+#     pip install "setuptools<81"
+#     pip install --no-build-isolation -r requirements-optional.txt
+#
+# A plain `pip install` FAILS. openai-whisper's build imports pkg_resources,
+# which setuptools removed in 81, and pip's isolated build environment brings
+# its own current setuptools regardless of what the venv has - so the pin only
+# takes effect with --no-build-isolation.
+# ---------------------------------------------------------------------------
 openai-whisper==20240930
 
 # Alternative LLM providers, for higher extraction accuracy than a local 3B
 # model. Enable with LLM_PROVIDER=anthropic (or openai) plus an API key.
+# These install normally.
 langchain-anthropic==0.3.1
 langchain-openai==0.2.14
