@@ -1,26 +1,34 @@
+# Pins are the versions this was actually built and tested against on
+# Python 3.14. Note that the older pins this file started with (pymongo 4.9.2,
+# faster-whisper 1.1.1) have no cp314 wheels and try to build from source.
+
 # --- API ---
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
 
 # --- Config & models ---
-pydantic==2.10.4
-pydantic-settings==2.7.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
 
 # --- Persistence ---
-motor==3.6.0
-pymongo==4.9.2
+# PyMongo's own AsyncMongoClient, not Motor: Motor reached end-of-life in May
+# 2026 once PyMongo 4.13 absorbed the async API. dnspython is a hard dependency
+# from 4.14 on (the [srv] extra is gone), so Atlas mongodb+srv:// URIs resolve
+# out of the box.
+pymongo==4.17.0
 
 # --- Transcription ---
-faster-whisper==1.1.1
+# Runs locally: patient audio never leaves the machine.
+faster-whisper==1.2.1
 
 # --- Extraction agent ---
-# LangGraph orchestrates the extract -> validate -> repair state machine;
-# the official Anthropic SDK makes the actual model calls.
-langgraph==0.2.60
-anthropic>=0.69.0
+# LangGraph orchestrates the fan-out -> assemble -> ground -> repair graph;
+# Gemini Flash makes the per-section calls.
+langgraph==1.2.11
+langchain-google-genai==4.3.5
 
 # --- Dev / test ---
-pytest==8.3.4
-pytest-asyncio==0.25.0
+pytest==9.1.1
+pytest-asyncio==1.3.0
 httpx==0.28.1

@@ -25,3 +25,6 @@ models/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Derived transcripts (patient audio -- never commit)
+transcript.txt
