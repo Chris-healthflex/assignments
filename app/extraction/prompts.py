@@ -174,6 +174,10 @@ comments - Any qualifier stated about that measurement, otherwise "".
 Copy numbers exactly as spoken. Do not round, convert, or supply a missing \
 side. If the transcript contains no measurements, return an empty list.
 
+"Bilaterally" means the SAME value applies to both sides - record it as
+left and right, not as one side of a different test. Two measurements
+stated back to back, each "bilaterally", are two separate entries.
+
 List EVERY measurement stated. They often arrive as one long sequence -
 "... 45 degrees bilaterally, ... 60 degrees bilaterally, ..." - and it is easy
 to skip one in the middle. Work through the sequence and account for every

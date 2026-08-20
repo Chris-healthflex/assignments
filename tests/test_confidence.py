@@ -285,3 +285,33 @@ def test_the_check_is_silent_without_a_transcript():
     """Scoring is called in tests and tools with no transcript to hand."""
     report = score(empty_assessment(), [], threshold=THRESHOLD)
     assert not [f for f in report.flaggedFields if f.reason == "possibly_missed"]
+
+
+def test_a_value_carrying_its_unit_still_counts_as_captured():
+    """Regression: this produced a false "everything is missing" report.
+
+    The model stores "124 degrees" rather than "124". A strict float() parsed
+    every captured value as nothing, so the completeness check reported all
+    eight spoken measurements as missed - including the four sitting in the
+    record right next to it.
+    """
+    assessment = FirstAssessment.model_validate(
+        {"objectiveAssessment": {"tests": [
+            {"testName": "Knee flexion", "unitName": "degrees", "left": "124\u00b0", "right": "130\u00b0"},
+            {"testName": "Knee extension", "unitName": "degrees", "left": "20\u00b0", "right": "5\u00b0"},
+            {"testName": "Hip internal rotation", "unitName": "degrees", "left": "45\u00b0", "right": "45\u00b0"},
+            {"testName": "Hip external rotation", "unitName": "degrees", "left": "60\u00b0", "right": "60\u00b0"},
+            {"testName": "Ankle dorsiflexion", "unitName": "degrees", "left": "4.5\u00b0", "right": "12\u00b0"},
+        ]}}
+    )
+    assert find_missed_measurements(TRANSCRIPT_WITH_FIVE, assessment) == []
+
+
+def test_the_detector_reads_through_any_unit_spelling():
+    from app.extraction.confidence import _as_number
+
+    assert _as_number("124") == "124"
+    assert _as_number("124\u00b0") == "124"
+    assert _as_number(" 4.5\u00b0 ") == "4.5"
+    assert _as_number("20 degrees") == "20"
+    assert _as_number("degrees") == ""       # no number at all

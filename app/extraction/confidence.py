@@ -45,11 +45,21 @@ REJECTION_PENALTY = 0.10
 _SPOKEN_MEASUREMENT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:°|degrees|deg)", re.IGNORECASE)
 
 
+_LEADING_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
 def _as_number(text: str) -> str:
-    try:
-        value = float(text)
-    except (TypeError, ValueError):
+    """The numeric part of a value, ignoring any unit attached to it.
+
+    A strict float() here caused a false-positive storm: the model stores
+    "124 degrees" rather than "124", every captured value parsed as nothing,
+    and the completeness check reported every spoken measurement as missing -
+    including the ones sitting in the record.
+    """
+    match = _LEADING_NUMBER.search(str(text or ""))
+    if not match:
         return ""
+    value = float(match.group(0))
     return str(int(value)) if value.is_integer() else str(value)
 
 

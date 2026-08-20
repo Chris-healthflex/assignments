@@ -330,3 +330,21 @@ def test_two_findings_do_not_collide_on_the_same_label():
     assert out[0]["testName"] == "Pain"
     assert out[1]["testName"] != "Pain"
     assert out[1]["testName"]          # and it is not blank either
+
+
+def test_the_unit_is_stripped_from_measurement_values():
+    """unitName already carries the unit; repeating it in left/right makes the
+    field something a consumer has to parse rather than read - and it broke the
+    completeness check, which counted "124 degrees" as no number at all."""
+    from app.extraction.graph import _strip_unit
+
+    out = _merge_sided_tests(_normalise_tests([
+        {"testName": "Knee flexion", "unitName": "degrees", "left": "124\u00b0", "right": "130\u00b0", "value": ""},
+    ]))
+    assert (out[0]["left"], out[0]["right"]) == ("124", "130")
+    assert out[0]["unitName"] == "degrees"
+
+    assert _strip_unit("4.5\u00b0") == "4.5"
+    assert _strip_unit("20 degrees") == "20"
+    assert _strip_unit("") == ""
+    assert _strip_unit("normal") == "normal"      # nothing numeric: left alone

@@ -28,6 +28,7 @@ is enforced after the fact by code that can be tested directly.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Annotated, Any, TypedDict
 
@@ -236,9 +237,9 @@ def _merge_sided_tests(tests: list) -> list:
             order.append(key)
         row = merged[key]
 
-        left = str(test.get("left") or "").strip()
-        right = str(test.get("right") or "").strip()
-        value = str(test.get("value") or "").strip()
+        left = _strip_unit(str(test.get("left") or ""))
+        right = _strip_unit(str(test.get("right") or ""))
+        value = _strip_unit(str(test.get("value") or ""))
 
         if side == "left":
             # A row named "Left ..." may still carry both sides.
@@ -281,6 +282,23 @@ def _split_goals(objective: list, subjective: list) -> tuple[list, list]:
             moved.append({"goalDetails": name, "targetDate": goal.get("targetDate") or ""})
 
     return kept, moved
+
+
+_MEASUREMENT_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def _strip_unit(value: str) -> str:
+    """Keep the number, drop the unit that rides along with it.
+
+    unitName already carries the unit, so "124 degrees" in `left` duplicates
+    it and makes the field harder for a consumer to use - it has to be parsed
+    rather than read. A value with no number at all is left untouched.
+    """
+    text = (value or "").strip()
+    if not text:
+        return ""
+    match = _MEASUREMENT_NUMBER.search(text)
+    return match.group(0) if match else text
 
 
 def _normalise_tests(tests: list) -> list:
