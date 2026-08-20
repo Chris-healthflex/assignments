@@ -503,8 +503,7 @@ code was additionally verified against a live MongoDB 7.0.14 during development.
 
 ## Screenshots
 
-A full run of the pipeline, from upload to signed record. Source media lives in
-[`docs/`](docs/).
+A full run of the pipeline, from upload to signed record.
 
 ### Intake
 
