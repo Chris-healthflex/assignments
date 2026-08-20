@@ -1,0 +1,16 @@
+[project]
+name = "clinical-assessment-form-filler"
+version = "1.0.0"
+description = "WAV clinician session -> Whisper -> LangGraph -> FirstAssessment JSON -> MongoDB"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# pytest-asyncio needs this set explicitly; leaving it unset emits a
+# deprecation warning on every run.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::DeprecationWarning:mongomock.*",
+]
