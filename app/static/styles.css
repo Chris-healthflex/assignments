@@ -310,7 +310,29 @@ button { font: inherit; cursor: pointer; }
 .editable { cursor: text; border-radius: 2px; }
 .editable:hover, .editable:focus-visible { background: #f0ece4; outline: none; box-shadow: 0 0 0 6px #f0ece4; }
 .editable:focus-visible { box-shadow: 0 0 0 2px var(--pine); }
-.editable:hover .add-hint, .editable:focus-visible .add-hint { opacity: 1; }
+.editable:hover .add-hint, .editable:focus-visible .add-date {
+  font-size: 12px; color: var(--muted);
+  border-bottom: 1px dashed #cfc7ba; padding-bottom: 1px;
+}
+.editable:hover .add-date, .editable:focus-visible .add-date {
+  color: var(--pine); border-bottom-color: var(--pine);
+}
+/* The record still has to read as a record on paper, where nothing is
+ * clickable — so an unfilled date prints as the fact, not the invitation. */
+@media print { .add-date { border: none; } }
+
+.add-hint { opacity: 1; }
+
+.add-date {
+  font-size: 12px; color: var(--muted);
+  border-bottom: 1px dashed #cfc7ba; padding-bottom: 1px;
+}
+.editable:hover .add-date, .editable:focus-visible .add-date {
+  color: var(--pine); border-bottom-color: var(--pine);
+}
+/* The record still has to read as a record on paper, where nothing is
+ * clickable — so an unfilled date prints as the fact, not the invitation. */
+@media print { .add-date { border: none; } }
 
 .add-hint {
   display: inline-block; margin-left: 10px; opacity: 0;
@@ -400,7 +422,18 @@ button { font: inherit; cursor: pointer; }
    * flagged/discarded distinction is carried by weight and italic too. */
   .field.is-flagged { background: none; box-shadow: none; }
   .blank { color: #6b4a15; }
-  .add-hint { display: none !important; }
+  .add-date {
+  font-size: 12px; color: var(--muted);
+  border-bottom: 1px dashed #cfc7ba; padding-bottom: 1px;
+}
+.editable:hover .add-date, .editable:focus-visible .add-date {
+  color: var(--pine); border-bottom-color: var(--pine);
+}
+/* The record still has to read as a record on paper, where nothing is
+ * clickable — so an unfilled date prints as the fact, not the invitation. */
+@media print { .add-date { border: none; } }
+
+.add-hint { display: none !important; }
   .editable:hover { background: none; box-shadow: none; }
   .added {
     border: none; background: none; padding: 0 0 0 6px;

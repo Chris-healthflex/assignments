@@ -285,10 +285,14 @@ function paintValue(node, path, extracted, kind) {
     makeEditable(node, path, kind);
     return false;
   }
-  const blank = el('span', 'blank' + (kind === 'date' ? ' blank--sm' : ''),
-    kind === 'date' ? 'Not stated' : 'Not stated in this recording');
-  node.appendChild(blank);
-  node.appendChild(el('span', 'add-hint', kind === 'date' ? 'Add date' : 'Add'));
+  if (kind === 'date') {
+    // The section header already reports how many dates are missing; repeating
+    // "Not stated" on every row is noise. The row offers the action instead.
+    node.appendChild(el('span', 'add-date', 'Add target date'));
+  } else {
+    node.appendChild(el('span', 'blank', 'Not stated in this recording'));
+    node.appendChild(el('span', 'add-hint', 'Add'));
+  }
   makeEditable(node, path, kind);
   return true;
 }
@@ -755,7 +759,17 @@ function openTimings() {
 
 $('btnTimings').addEventListener('click', () => setTimingsOpen($('timings').hidden));
 
-$('btnPdf').addEventListener('click', () => window.print());
+$('btnPdf').addEventListener('click', () => {
+  // Swap the interactive affordances for statements of fact, print, restore.
+  document.querySelectorAll('.add-date').forEach((n) => {
+    n.dataset.screen = n.textContent;
+    n.textContent = 'Not stated';
+  });
+  window.print();
+  document.querySelectorAll('.add-date').forEach((n) => {
+    n.textContent = n.dataset.screen || 'Add target date';
+  });
+});
 
 $('btnSign').addEventListener('click', () => {
   if (signed) return;                       // one-way: a record is not un-signed
