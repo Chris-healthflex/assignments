@@ -17,7 +17,7 @@ WAV upload → Whisper transcription → LangGraph extraction
 | Dates invented | **0** — the recording contains none, and every `targetDate` is empty |
 | Measurements captured | 4 of the 5 stated; the 5th is **flagged as missed**, not silently dropped |
 | End to end | ~165 s (29 s transcription, 135 s extraction, **0.03 s** verification) |
-| Tests | **186 passing**, no models or database server required |
+| Tests | **188 passing**, no models or database server required |
 
 A full run is committed at [`data/sample_output.json`](data/sample_output.json).
 
@@ -480,7 +480,7 @@ here that the guard works.
 ## Testing
 
 ```bash
-pytest                          # 163 tests, ~8 seconds
+pytest                          # 188 tests, ~8 seconds
 pytest tests/test_grounding.py  # the S6 proof
 ```
 
@@ -515,6 +515,11 @@ Everything is environment-driven; see [`.env.example`](.env.example).
 | `LLM_TEMPERATURE` | `0.0` | Deterministic; do not raise |
 | `CONFIDENCE_THRESHOLD` | `0.55` | Below this, EP1 returns 422 |
 | `MONGODB_URI` | `mongodb://localhost:27017` | Atlas URIs work unchanged |
+| `MONGODB_DB` | `clinical_assessments` | Database name |
+| `WHISPER_COMPUTE_TYPE` | `int8` | `int8` is ~4× faster on CPU than `float32` |
+| `WHISPER_LANGUAGE` | `en` | Blank auto-detects, at some cost in accuracy |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Only used when `LLM_PROVIDER=ollama` |
+| `MAX_UPLOAD_BYTES` | `209715200` | 200 MB; enforced while streaming, not after |
 
 ---
 

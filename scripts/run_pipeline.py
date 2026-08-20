@@ -137,6 +137,15 @@ async def persist(assessment, transcript, result, settings, filename: str) -> st
 
 
 def main() -> int:
+    # Force UTF-8 on both streams. Redirected output on Windows otherwise takes
+    # the locale encoding (cp1252 here), and the degree signs in every
+    # range-of-motion value are written as bytes that are not valid UTF-8 - so
+    # `run_pipeline.py > out.json` produced a file json.load could not read.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(
         description="Run the clinical assessment pipeline on a WAV file.",
         formatter_class=argparse.RawDescriptionHelpFormatter,

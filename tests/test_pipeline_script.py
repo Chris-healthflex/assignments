@@ -121,3 +121,26 @@ def test_sample_output_met_the_confidence_threshold(sample):
     confidence = sample["confidence"]
     assert confidence["meetsThreshold"]
     assert confidence["overall"] >= confidence["threshold"]
+
+
+def test_script_forces_utf8_on_its_streams():
+    """Redirected output on Windows otherwise takes the locale encoding.
+
+    Every range-of-motion value carries a degree sign, so under cp1252
+    `run_pipeline.py > out.json` wrote bytes that json.load could not read
+    back. The committed artifact below is the same content, so it doubles as
+    the check that the encoding path holds.
+    """
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert 'reconfigure(encoding="utf-8")' in source
+
+
+def test_sample_output_is_utf8_with_its_symbols_intact():
+    if not SAMPLE.exists():
+        pytest.skip("sample_output.json not generated yet")
+
+    raw = SAMPLE.read_text(encoding="utf-8")      # raises if not valid UTF-8
+    assert json.loads(raw)
+    # The transcript quotes measurements as "124°"; losing the sign silently
+    # would mean the encoding regressed.
+    assert "\u00b0" in raw
