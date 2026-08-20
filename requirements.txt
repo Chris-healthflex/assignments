@@ -1,0 +1,26 @@
+# --- API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# --- Config & models ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# --- Persistence ---
+motor==3.6.0
+pymongo==4.9.2
+
+# --- Transcription ---
+faster-whisper==1.1.1
+
+# --- Extraction agent ---
+# LangGraph orchestrates the extract -> validate -> repair state machine;
+# the official Anthropic SDK makes the actual model calls.
+langgraph==0.2.60
+anthropic>=0.69.0
+
+# --- Dev / test ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1
