@@ -1,0 +1,22 @@
+# Line endings are pinned per file type rather than left to each developer's
+# core.autocrlf. Without this, a clone on a machine with autocrlf=true gets
+# run.sh with CRLF endings, and bash rejects it with "bad interpreter: ^M" --
+# a failure whose message points nowhere near the cause.
+
+# Default: normalise to LF in the repository, convert on checkout as usual.
+* text=auto
+
+# Shell scripts must be LF everywhere, including on Windows, because they are
+# run by Git Bash and WSL as often as by macOS and Linux.
+*.sh text eol=lf
+
+# Batch files must be CRLF: cmd.exe mis-parses multi-line constructs with LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets, never touched.
+*.wav binary
+*.mp3 binary
+*.m4a binary
+*.png binary
+*.jpg binary

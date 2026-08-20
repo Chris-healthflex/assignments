@@ -64,8 +64,42 @@ ankle dorsiflexion     L 4.5   R 12    degrees
 
 ## Quick start
 
-Requires **Python 3.14** (built and tested on 3.14.3), a **Google AI Studio API
-key** (free), and a **MongoDB** instance (Atlas free tier is fine).
+You need **Python 3.14** installed. The scripts handle everything else.
+
+Two values have to come from you, both free:
+
+| Value | Where from |
+|---|---|
+| `GOOGLE_API_KEY` | https://aistudio.google.com/apikey |
+| `MONGODB_URI` | Atlas free tier, or a local `mongod` |
+
+### One command
+
+```bash
+run.bat          # Windows
+./run.sh         # macOS / Linux
+```
+
+That creates the virtual environment, installs the pins, checks the setup, and
+starts the server. Run it with no `.env` present and it copies the example, names
+the two values to fill in, and stops — rather than starting a server that will
+fail on the first upload.
+
+Other modes:
+
+```bash
+run.bat check    # only verify the setup, start nothing
+run.bat warm     # also pre-download the Whisper weights and test the API key
+run.bat test     # run the test suite
+```
+
+`warm` is worth the wait once: it pulls the ~1.5 GB of Whisper weights up front,
+so the first upload is slow only because of CPU, not because of a download.
+
+Safe to re-run. The venv and installed packages are reused, so a second run
+reaches the server in about a second.
+
+### Or by hand
 
 ```bash
 python -m venv .venv
@@ -73,6 +107,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 cp .env.example .env            # then fill in GOOGLE_API_KEY and MONGODB_URI
+python -m app.doctor            # verifies the above before you spend time on it
 uvicorn app.main:app --reload
 ```
 
@@ -91,6 +126,7 @@ python -m tests.run_pipeline clinical_assessment.wav > out.json
 
 1. **Whisper downloads itself** — ~1.5 GB of model weights into
    `~/.cache/huggingface/hub`, once. Nothing is committed to this repo.
+   `run.bat warm` does this up front instead of mid-upload.
 2. **The first transcription takes minutes**, not seconds — roughly 3 minutes of
    CPU for the 105-second sample. The result is cached by content hash, so every
    run after that is instant.
