@@ -117,11 +117,17 @@ def _blank_flags(assessment: FirstAssessment, already_flagged: set[str]) -> list
         if path not in already_flagged and not _filled(getattr(assessment.clinicalDetails, name)):
             flags.append(FieldFlag(path=path, reason="not_stated"))
 
+    # Goals are one clinical concern split across two buckets by whether they
+    # carry a numeric target. Flagging the empty bucket when the other is full
+    # reports a gap that does not exist - the goals were recorded, just as the
+    # other kind.
+    has_goals = bool(assessment.subjectiveGoals or assessment.objectiveGoals)
+
     section_checks: Iterable[tuple[str, bool]] = (
         ("subjectiveAssessments", bool(assessment.subjectiveAssessments)),
         ("objectiveAssessment.tests", bool(assessment.objectiveAssessment.tests)),
-        ("subjectiveGoals", bool(assessment.subjectiveGoals)),
-        ("objectiveGoals", bool(assessment.objectiveGoals)),
+        ("subjectiveGoals", has_goals),
+        ("objectiveGoals", has_goals),
         ("recommendation", bool(assessment.recommendation)),
     )
     for path, present in section_checks:

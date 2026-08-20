@@ -276,6 +276,49 @@ button { font: inherit; cursor: pointer; }
 .signed__t { font-family: var(--serif); font-size: 17px; color: var(--pine); }
 .signed__d { font-size: 12.5px; color: var(--body); margin-top: 5px; line-height: 1.5; }
 
+/* ------------------------------------------------- clinician-entered values
+ * A form filler has to let the clinician fill the form. Blank fields the
+ * recording could not supply are the ones most in need of it, so "Not stated"
+ * is an invitation rather than a dead end.
+ *
+ * What a person typed is marked distinctly from what was heard, and stays
+ * marked in the PDF: in a medical note the provenance of a value matters as
+ * much as the value.
+ */
+.editable { cursor: text; border-radius: 2px; }
+.editable:hover, .editable:focus-visible { background: #f0ece4; outline: none; box-shadow: 0 0 0 6px #f0ece4; }
+.editable:focus-visible { box-shadow: 0 0 0 2px var(--pine); }
+.editable:hover .add-hint, .editable:focus-visible .add-hint { opacity: 1; }
+
+.add-hint {
+  display: inline-block; margin-left: 10px; opacity: 0;
+  font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--pine); transition: opacity 120ms ease;
+}
+
+.added {
+  display: inline-block; margin-left: 10px; padding: 1px 7px;
+  font-size: 9.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--pine); background: var(--pine-wash); border: 1px solid #c3d4ca;
+  vertical-align: 2px;
+}
+
+.entry {
+  display: block; width: 100%; padding: 7px 9px;
+  font: inherit; font-size: 14px; color: var(--ink);
+  background: #fff; border: 1px solid var(--pine); border-radius: 2px;
+  resize: vertical;
+}
+.entry:focus { outline: none; box-shadow: 0 0 0 3px rgba(29, 74, 62, 0.14); }
+
+.goal__date { min-width: 190px; text-align: right; }
+.goal__date .entry { text-align: left; }
+
+.tally__done {
+  font-size: 12px; color: var(--pine); margin: 0 0 12px;
+  padding-left: 14px; border-left: 2px solid var(--pine);
+}
+
 /* ---------------------------------------------------------------- alerts */
 .alert { margin-top: 44px; padding: 28px 32px; border: 1px solid #e0c9c9; background: var(--rose-wash); }
 .alert--warn { border-color: #e6d5b4; background: var(--ochre-wash); }
@@ -335,6 +378,12 @@ button { font: inherit; cursor: pointer; }
    * flagged/discarded distinction is carried by weight and italic too. */
   .field.is-flagged { background: none; box-shadow: none; }
   .blank { color: #6b4a15; }
+  .add-hint { display: none !important; }
+  .editable:hover { background: none; box-shadow: none; }
+  .added {
+    border: none; background: none; padding: 0 0 0 6px;
+    color: #1d4a3e; font-size: 7.5pt;
+  }
 
   .print-appendix { page-break-before: always; break-before: page; }
   .print-appendix h2 { font-family: var(--serif); font-size: 14pt; font-weight: 400; border-bottom: 1pt solid #1a1a18; padding-bottom: 6pt; }

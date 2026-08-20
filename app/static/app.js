@@ -44,6 +44,12 @@ let result = null;
 let signed = false;
 let ticker = null;
 
+/* Values the clinician typed in, keyed by schema path. Kept apart from the
+ * extracted record on purpose: a field completed by a person and a field read
+ * off a recording carry different weight in a medical note, and the export has
+ * to be able to tell a reader which is which. */
+const manual = Object.create(null);
+
 /* ------------------------------------------------------------------ utils */
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -222,18 +228,79 @@ async function run() {
 }
 
 /* ----------------------------------------------------------------- review */
+/** Make one value editable in place. Blank fields are the point of this. */
+function makeEditable(node, path, placeholder) {
+  node.classList.add('editable');
+  node.tabIndex = 0;
+  node.setAttribute('role', 'button');
+  node.setAttribute('aria-label', (manual[path] ? 'Edit ' : 'Add ') + path);
+
+  const open = () => {
+    if (node.dataset.editing === '1') return;
+    node.dataset.editing = '1';
+
+    const current = manual[path] || '';
+    const long = placeholder !== 'date';
+    const input = document.createElement(long ? 'textarea' : 'input');
+    input.className = 'entry';
+    input.value = current;
+    if (!long) { input.type = 'date'; }
+    else { input.rows = Math.max(2, Math.ceil(current.length / 60)); input.placeholder = 'Type what was said or observed…'; }
+
+    node.textContent = '';
+    node.appendChild(input);
+    input.focus();
+
+    const commit = () => {
+      const text = input.value.trim();
+      if (text) manual[path] = text; else delete manual[path];
+      node.dataset.editing = '';
+      rerender();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { node.dataset.editing = ''; rerender(); }
+      if (e.key === 'Enter' && (!long || e.metaKey || e.ctrlKey)) { e.preventDefault(); input.blur(); }
+    });
+  };
+
+  node.addEventListener('click', open);
+  node.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
+}
+
+/** Paint a value: extracted, clinician-entered, or an invitation to add one. */
+function paintValue(node, path, extracted, kind) {
+  node.textContent = '';
+  const typed = manual[path];
+
+  if (extracted && String(extracted).trim()) {
+    node.textContent = extracted;
+    return false;
+  }
+  if (typed) {
+    node.appendChild(el('span', null, typed));
+    node.appendChild(el('span', 'added', 'added by clinician'));
+    makeEditable(node, path, kind);
+    return false;
+  }
+  const blank = el('span', 'blank' + (kind === 'date' ? ' blank--sm' : ''),
+    kind === 'date' ? 'Not stated' : 'Not stated in this recording');
+  node.appendChild(blank);
+  node.appendChild(el('span', 'add-hint', kind === 'date' ? 'Add date' : 'Add'));
+  makeEditable(node, path, kind);
+  return true;
+}
+
 function fieldRow(label, value, path) {
   const row = el('div', 'field');
   if (path) row.dataset.path = path;
   row.appendChild(el('div', 'field__label', label));
 
   const v = el('div', 'field__value');
-  if (value && String(value).trim()) {
-    v.textContent = value;
-  } else {
-    v.appendChild(el('span', 'blank', 'Not stated in this recording'));
-    row.classList.add('is-flagged');
-  }
+  const isBlank = paintValue(v, path, value, 'text');
+  if (isBlank) row.classList.add('is-flagged');
   row.appendChild(v);
   return row;
 }
@@ -320,11 +387,10 @@ function goalRow(name, date, path) {
   const row = el('div', 'goal');
   row.dataset.path = path;
   row.appendChild(el('div', 'goal__name', name || '—'));
-  if (date && date.trim()) {
-    row.appendChild(el('div', 'num', date));
-  } else {
-    row.appendChild(el('div', 'blank blank--sm', 'Not stated'));
-  }
+
+  const cell = el('div', 'goal__date');
+  paintValue(cell, path, date, 'date');
+  row.appendChild(cell);
   return row;
 }
 
@@ -345,9 +411,13 @@ function renderGoals(a) {
     host.appendChild(row);
   }
 
-  const missing = (a.objectiveGoals || []).concat(a.subjectiveGoals || [])
-    .filter((g) => !(g.targetDate || '').trim()).length;
-  $('goalsNote').textContent = missing ? `${missing} target dates not stated` : '';
+  const paths = []
+    .concat((a.objectiveGoals || []).map((g, i) => [g, `objectiveGoals[${i}].targetDate`]))
+    .concat((a.subjectiveGoals || []).map((g, i) => [g, `subjectiveGoals[${i}].targetDate`]));
+  const missing = paths.filter(([g, path]) => !(g.targetDate || '').trim() && !manual[path]).length;
+  $('goalsNote').textContent = missing
+    ? `${missing} target ${missing === 1 ? 'date' : 'dates'} not stated — add them here`
+    : 'All target dates recorded';
 }
 
 function renderPlan(a) {
@@ -440,14 +510,25 @@ function renderFlags() {
   host.textContent = '';
 
   const rejected = result.flaggedFields.filter((f) => f.reason === 'rejected');
+  const outstanding = result.flaggedFields.filter((f) => !manual[f.path]);
+  const completed = result.flaggedFields.length - outstanding.length;
+
   $('tallyDiscarded').textContent = String(result.confidence.rejectedCount);
-  $('tallyFlagged').textContent = String(result.flaggedFields.length);
+  $('tallyFlagged').textContent = String(outstanding.length);
+
+  const progress = $('flagProgress');
+  if (progress) {
+    progress.hidden = !completed;
+    progress.textContent = completed
+      ? `${completed} of ${result.flaggedFields.length} completed by hand.`
+      : '';
+  }
 
   $('discardedNote').textContent = result.confidence.rejectedCount
     ? 'Values the model produced that could not be traced to the recording. Cleared, and listed below for audit.'
     : 'Every value above was traced back to something actually said in the recording. Nothing was inferred.';
 
-  result.flaggedFields.forEach((f) => {
+  outstanding.forEach((f) => {
     const btn = el('button', 'flag' + (f.reason === 'rejected' ? ' flag--rejected' : ''));
     btn.type = 'button';
     btn.appendChild(el('div', 'flag__path', f.path));
@@ -490,20 +571,26 @@ function renderPrintExtras() {
     `${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · ` +
     `confidence ${c.overall.toFixed(2)} (threshold ${c.threshold.toFixed(2)})`;
 
+  const typedCount = result.flaggedFields.filter((f) => manual[f.path]).length;
   $('pAppendixLede').textContent =
     'These fields were left blank because the recording did not cover them, or ' +
     'because a value could not be traced back to it. They were not inferred. ' +
-    'Complete them by hand before filing this record.';
+    (typedCount
+      ? `${typedCount} of ${result.flaggedFields.length} have since been completed by the clinician and are marked below.`
+      : 'Complete them by hand before filing this record.');
 
   const host = $('pAppendix');
   host.textContent = '';
   result.flaggedFields.forEach((f) => {
     const row = el('div', 'row');
     row.appendChild(el('div', 'p', f.path));
+    const typed = manual[f.path];
     row.appendChild(el('div', 'w',
-      f.reason === 'rejected'
-        ? 'Discarded — ' + (f.detail || 'could not be traced to the recording')
-        : 'Not stated in the recording'));
+      typed
+        ? 'Completed by clinician: ' + typed
+        : f.reason === 'rejected'
+          ? 'Discarded — ' + (f.detail || 'could not be traced to the recording')
+          : 'Not stated in the recording'));
     host.appendChild(row);
   });
 
@@ -513,6 +600,19 @@ function renderPrintExtras() {
     `against the transcript; ${c.rejectedCount} were discarded as untraceable. This document ` +
     `requires clinician review and signature before it forms part of a medical record.`;
 }
+
+/** Repaint the parts that depend on clinician-entered values. */
+function rerender() {
+  const a = result.assessment;
+  renderPresentation(a);
+  renderObjective(a);
+  renderSubjective(a);
+  renderGoals(a);
+  renderPlan(a);
+  renderFlags();
+  renderPrintExtras();
+}
+
 
 function showReview() {
   const a = result.assessment;

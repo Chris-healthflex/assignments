@@ -202,3 +202,24 @@ def test_report_carries_the_threshold_it_was_judged_against():
     """The API returns this, so a 422 can explain what bar was missed."""
     report = score(empty_assessment(), [], threshold=0.8)
     assert report.threshold == 0.8
+
+
+def test_an_empty_goal_bucket_is_not_flagged_when_the_other_is_full():
+    """Goals are one concern in two buckets, split by whether they measure.
+
+    Reclassifying a narrative goal into subjectiveGoals leaves objectiveGoals
+    empty by design; flagging that reports a gap that does not exist.
+    """
+    assessment = FirstAssessment.model_validate(
+        {"subjectiveGoals": [{"goalDetails": "Improve ankle mobility", "targetDate": ""}]}
+    )
+    report = score(assessment, [], threshold=THRESHOLD)
+    paths = {f.path for f in report.flaggedFields}
+    assert "objectiveGoals" not in paths
+    assert "subjectiveGoals" not in paths
+
+
+def test_goals_are_still_flagged_when_neither_bucket_has_any():
+    report = score(empty_assessment(), [], threshold=THRESHOLD)
+    paths = {f.path for f in report.flaggedFields}
+    assert "subjectiveGoals" in paths
