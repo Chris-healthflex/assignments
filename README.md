@@ -538,16 +538,34 @@ project: `not_stated` (the recording never covered it), `rejected` (a value the
 model produced that could not be traced back), and `possibly_missed` (a
 measurement the recording states that reached no field).
 
+### Completing what the recording could not supply
+
+![Clinician-entered values](docs/screenshots/06-editing.png)
+
+Blank fields are editable in place, and anything typed is marked **added by
+clinician** — on screen and in the exported PDF. In a medical note the
+provenance of a value matters as much as the value, so a later reader can
+always tell what was heard from what was filled in by hand. Completing a field
+decrements the outstanding count rather than quietly altering the extraction.
+
+### The transcript stays attached
+
+![Transcript panel](docs/screenshots/07-transcript.png)
+
+Whisper's output is kept beside the record, so a clinician can check any
+extracted value against what was actually said rather than trusting the
+pipeline.
+
 ### Where the time goes
 
-![Stage timings](docs/screenshots/06-timings.png)
+![Stage timings](docs/screenshots/08-timings.png)
 
 The three steps that guarantee nothing was invented use no model and cost a
 fraction of a second against roughly two minutes of inference.
 
 ### The API
 
-![Swagger UI](docs/screenshots/07-swagger.png)
+![Swagger UI](docs/screenshots/09-swagger.png)
 
 ### The exported report
 
