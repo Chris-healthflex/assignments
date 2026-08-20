@@ -690,6 +690,17 @@ function showReview() {
     meta.appendChild(el('span', cls, text));
   });
 
+  // The panel below the stats was easy to miss. The header line is where a
+  // reader looks for "how long did that take", so put the way in there too.
+  const total = (result.timings || {}).total;
+  if (total) {
+    meta.appendChild(el('span', 'dot'));
+    const link = el('button', 'meta-link', 'processed in ' + fmtDuration(total));
+    link.type = 'button';
+    link.addEventListener('click', openTimings);
+    meta.appendChild(link);
+  }
+
   renderConfidence();
   renderTimings();
   renderStats();
@@ -732,11 +743,17 @@ $('btnHow').addEventListener('click', () => {
   $('btnHow').textContent = box.hidden ? 'How is this calculated?' : 'Hide the calculation';
 });
 
-$('btnTimings').addEventListener('click', () => {
-  const box = $('timings');
-  box.hidden = !box.hidden;
-  $('btnTimings').textContent = box.hidden ? 'How long did this take?' : 'Hide the timings';
-});
+function setTimingsOpen(open) {
+  $('timings').hidden = !open;
+  $('btnTimings').textContent = open ? 'Hide the timings' : 'How long did this take?';
+}
+
+function openTimings() {
+  setTimingsOpen(true);
+  $('timings').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+$('btnTimings').addEventListener('click', () => setTimingsOpen($('timings').hidden));
 
 $('btnPdf').addEventListener('click', () => window.print());
 
