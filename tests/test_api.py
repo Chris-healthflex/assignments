@@ -379,8 +379,42 @@ def test_openapi_documents_all_four_endpoints(client):
 
 
 def test_docs_page_renders(client):
-    """Swagger UI is the project's only interface, so it must actually serve."""
     assert client.get("/docs").status_code == 200
+
+
+# --------------------------------------------------------------------------
+# Clinician interface
+# --------------------------------------------------------------------------
+def test_index_serves_the_interface(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Clinical Assessment" in response.text
+
+
+def test_static_assets_serve(client):
+    for path in ("/static/styles.css", "/static/app.js"):
+        assert client.get(path).status_code == 200, path
+
+
+def test_interface_is_not_in_the_openapi_schema(client):
+    """The UI routes are not API surface and must not clutter the docs."""
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/" not in paths
+    assert "/static" not in paths
+
+
+def test_interface_does_not_shadow_the_api(client):
+    """Mounting static must not break the endpoints it sits alongside."""
+    assert client.get("/health").status_code == 200
+    assert client.get("/assessments").status_code == 200
+
+
+def test_stylesheet_defines_print_rules(client):
+    """PDF export is browser print, so the print block is the feature."""
+    css = client.get("/static/styles.css").text
+    assert "@media print" in css
+    assert "@page" in css
 
 
 def test_responses_carry_tracing_headers(client):

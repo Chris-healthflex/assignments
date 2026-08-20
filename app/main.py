@@ -3,10 +3,16 @@
 Run with:
     uvicorn app.main:app --reload
 
-Swagger UI at /docs is the project's interface - the brief lists no UI
-deliverable and states the JSON is consumed by an existing clinician
-frontend - so the OpenAPI metadata here is treated as a deliverable rather
-than as boilerplate.
+Two front doors, both first-class:
+
+* ``/``      the clinician interface - upload a recording, review the extracted
+             record, export it as a PDF, sign it off.
+* ``/docs``  Swagger UI over the same API. The OpenAPI metadata is written to
+             be read, not left as boilerplate, since a reviewer may arrive here
+             rather than at the interface.
+
+The interface is static files with no build step, so it can be read without a
+toolchain.
 """
 
 from __future__ import annotations
@@ -17,11 +23,14 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
-from app.config import get_settings
+from app.config import PROJECT_ROOT, get_settings
 from app.db import client as db_client
+
+STATIC_DIR = PROJECT_ROOT / "app" / "static"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +64,10 @@ measurement is not.
 * `not_stated` - the recording never covered this field. Benign and expected.
 * `rejected` - the model produced a value that failed verification. This is a
   caught hallucination, and the discarded value is included for audit.
+
+### Interfaces
+
+The clinician interface is at `/`. This page documents the API behind it.
 
 ### Timing
 
@@ -124,6 +137,22 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(router)
+
+    # The clinician interface. Static files only - no build step, no bundler -
+    # so the front end can be read without a toolchain. Mounted after the
+    # router so an API path can never be shadowed by a file of the same name.
+    if STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+        @app.get("/", include_in_schema=False)
+        async def index():
+            return FileResponse(STATIC_DIR / "index.html")
+
+        @app.get("/favicon.ico", include_in_schema=False)
+        async def favicon():
+            # Browsers request this unprompted; 204 keeps it out of the logs.
+            return JSONResponse(status_code=204, content=None)
+
     return app
 
 

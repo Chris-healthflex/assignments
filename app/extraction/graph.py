@@ -125,6 +125,164 @@ def _verify_grounding(state: ExtractionState) -> dict:
     }
 
 
+#: Findings a small model tends to emit as one blob. Matching an extracted
+#: finding against this controlled vocabulary is *classification of text the
+#: model already produced* - no clinical content is introduced, and an
+#: unmatched finding keeps an empty name rather than being given a guessed one.
+#: Order is load-bearing: first match wins, so the most specific signal has to
+#: come first. A finding that reads "healed surgical scar ... painful flexion"
+#: is about the scar, and one that reads "knee pain ... during walking" is
+#: about pain, not gait - matching anatomy first mislabels both.
+_FINDING_LABELS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("scar", "incision", "wound"), "Surgical scar"),
+    (("patellar", "patella"), "Patellar mobility"),
+    (("pain", "ache", "irritability", "tender"), "Pain"),
+    (("swelling", "oedema", "edema"), "Swelling"),
+    (("gait", "walking", "limp"), "Gait"),
+    (("dorsiflex", "plantarflex", "ankle"), "Ankle range"),
+    (("hip",), "Hip range"),
+    (("flexion", "extension", "range of motion"), "Knee range"),
+)
+
+
+def _is_narrative(text: str) -> bool:
+    """A label is a couple of words; anything sentence-shaped is a finding.
+
+    Length alone was too blunt - "Patellar mobility was good." is short but is
+    plainly a finding, not the name of a test.
+    """
+    return len(text.split()) > 3 or any(mark in text for mark in ".,;")
+
+
+def _label_for(text: str, taken: set[str] | None = None) -> str:
+    """First matching label, skipping ones already used on this assessment.
+
+    Two findings both mentioning pain would otherwise both come back "Pain".
+    Falling through to the next match distinguishes them - a finding about
+    restricted flexion becomes "Knee range" rather than a second "Pain".
+    """
+    lowered = text.lower()
+    fallback = ""
+    for needles, label in _FINDING_LABELS:
+        if any(needle in lowered for needle in needles):
+            if taken is None or label not in taken:
+                return label
+            fallback = fallback or label
+    return fallback
+
+
+def _normalise_subjective(items: list) -> list:
+    """Put the finding in `conclusion` and a short label in `testName`.
+
+    The model reliably crams the whole finding into testName and leaves
+    conclusion empty, which renders as a paragraph-length field label beside
+    the word "not stated". Moving the text is a rearrangement of what was
+    already extracted, not new content.
+    """
+    out: list[dict] = []
+    taken: set[str] = set()
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("testName") or "").strip()
+        conclusion = str(item.get("conclusion") or "").strip()
+
+        if not conclusion and _is_narrative(name):
+            # The whole finding landed in the label. Move it, and derive a name.
+            conclusion, name = name, _label_for(name, taken)
+        elif _is_narrative(name):
+            # Both fields are filled but the label is a sentence. Relabel it,
+            # keeping the original only when the vocabulary has no match, since
+            # a long label still beats losing the text.
+            name = _label_for(name, taken) or name
+        elif not name and conclusion:
+            name = _label_for(conclusion, taken)
+
+        if name or conclusion:
+            taken.add(name)
+            out.append({"testName": name, "conclusion": conclusion})
+    return out
+
+
+def _merge_sided_tests(tests: list) -> list:
+    """Collapse "Left knee flexion" and "Right knee flexion" into one row.
+
+    The model emits a row per side, each carrying one number and an empty
+    opposite side, so a bilateral measurement arrives as two half-blank rows.
+    The side is stated in the row's own name, so merging recovers a complete
+    measurement without inventing anything.
+    """
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+
+    for test in tests:
+        name = str(test.get("testName") or "").strip()
+        lowered = name.lower()
+
+        side = ""
+        base = name
+        for prefix, which in (("left ", "left"), ("right ", "right")):
+            if lowered.startswith(prefix):
+                side, base = which, name[len(prefix):].strip()
+                break
+
+        key = base.lower() or lowered
+        if key not in merged:
+            merged[key] = {
+                "testName": base[:1].upper() + base[1:] if base else name,
+                "unitName": "", "value": "", "left": "", "right": "", "comments": "",
+            }
+            order.append(key)
+        row = merged[key]
+
+        left = str(test.get("left") or "").strip()
+        right = str(test.get("right") or "").strip()
+        value = str(test.get("value") or "").strip()
+
+        if side == "left":
+            # A row named "Left ..." may still carry both sides.
+            row["left"] = row["left"] or left or value
+            row["right"] = row["right"] or right
+        elif side == "right":
+            row["right"] = row["right"] or right or left or value
+            row["left"] = row["left"] or (left if right else "")
+        else:
+            row["left"] = row["left"] or left
+            row["right"] = row["right"] or right
+            if not (left or right):
+                row["value"] = row["value"] or value
+
+        row["unitName"] = row["unitName"] or str(test.get("unitName") or "").strip()
+        row["comments"] = row["comments"] or str(test.get("comments") or "").strip()
+
+    return [merged[key] for key in order]
+
+
+def _split_goals(objective: list, subjective: list) -> tuple[list, list]:
+    """Move goals with no measurable target into subjectiveGoals.
+
+    An objective goal is one with a number to hit. "Improving ankle mobility"
+    has none, and filing it as an objective goal leaves goalCategory, unitName
+    and value permanently blank - three empty fields per goal that no recording
+    could ever fill. As a subjective goal it is complete.
+    """
+    kept, moved = [], list(subjective)
+
+    for goal in objective:
+        if not isinstance(goal, dict):
+            continue
+        measurable = str(goal.get("value") or "").strip() or str(goal.get("unitName") or "").strip()
+        name = str(goal.get("goalName") or "").strip()
+
+        if measurable:
+            kept.append(goal)
+        elif name:
+            moved.append({"goalDetails": name, "targetDate": goal.get("targetDate") or ""})
+
+    return kept, moved
+
+
 def _normalise_tests(tests: list) -> list:
     """Make objective measurements internally consistent.
 
@@ -171,12 +329,20 @@ def _assemble(state: ExtractionState) -> dict:
     goals = sections.get("goals", {})
     plan = sections.get("plan", {})
 
+    objective_goals, subjective_goals = _split_goals(
+        goals.get("objectiveGoals", []) or [], goals.get("subjectiveGoals", []) or []
+    )
+
     payload = {
         "clinicalDetails": clinical,
-        "subjectiveAssessments": subjective.get("subjectiveAssessments", []),
-        "objectiveAssessment": {"tests": _normalise_tests(objective.get("tests", []))},
-        "subjectiveGoals": goals.get("subjectiveGoals", []),
-        "objectiveGoals": goals.get("objectiveGoals", []),
+        "subjectiveAssessments": _normalise_subjective(
+            subjective.get("subjectiveAssessments", []) or []
+        ),
+        "objectiveAssessment": {
+            "tests": _merge_sided_tests(_normalise_tests(objective.get("tests", []) or []))
+        },
+        "subjectiveGoals": subjective_goals,
+        "objectiveGoals": objective_goals,
         "recommendation": plan.get("recommendation", []),
         "patientAdvice": plan.get("patientAdvice", {}),
     }
