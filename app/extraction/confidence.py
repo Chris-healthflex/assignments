@@ -17,6 +17,7 @@ offset by a well-populated goals list.
 
 from __future__ import annotations
 
+import re
 from typing import Iterable
 
 from pydantic import BaseModel, Field
@@ -38,6 +39,46 @@ SECTION_WEIGHTS: dict[str, float] = {
 #: How much each caught hallucination lowers the overall score. A rejection
 #: means the model was willing to invent, so later fields deserve less trust.
 REJECTION_PENALTY = 0.10
+
+#: A number carrying a unit is almost always a clinical measurement. Used to
+#: check the extraction against the recording for values it simply missed.
+_SPOKEN_MEASUREMENT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:°|degrees|deg)", re.IGNORECASE)
+
+
+def _as_number(text: str) -> str:
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        return ""
+    return str(int(value)) if value.is_integer() else str(value)
+
+
+def find_missed_measurements(transcript: str, assessment: FirstAssessment) -> list[str]:
+    """Measurements spoken in the recording that never reached the record.
+
+    Grounding is one-sided: it catches values the model invented, and is blind
+    to values it silently dropped. On the reference recording the model emitted
+    eight tests and omitted "hip external rotation of 60 degrees bilaterally"
+    entirely - nothing anywhere flagged it, and the record simply looked
+    complete.
+
+    Comparing the numbers spoken against the numbers captured closes that gap.
+    It reports; it never fills anything in, because which test a loose number
+    belongs to is exactly the guess this pipeline refuses to make.
+    """
+    spoken = {
+        _as_number(match.group(1)) for match in _SPOKEN_MEASUREMENT.finditer(transcript or "")
+    }
+    spoken.discard("")
+
+    captured: set[str] = set()
+    for test in assessment.objectiveAssessment.tests:
+        for raw in (test.value, test.left, test.right):
+            number = _as_number((raw or "").strip())
+            if number:
+                captured.add(number)
+
+    return sorted(spoken - captured, key=lambda n: float(n))
 
 
 class FieldFlag(BaseModel):
@@ -168,6 +209,7 @@ def score(
     issues: list[GroundingIssue],
     *,
     threshold: float,
+    transcript: str = "",
 ) -> ConfidenceReport:
     """Build the confidence report for a completed extraction."""
     section_scores = _score_sections(assessment)
@@ -190,6 +232,16 @@ def score(
     overall = max(0.0, min(1.0, weighted - penalty))
 
     flags = rejection_flags + _blank_flags(assessment, rejected_paths)
+
+    # False negatives: spoken measurements that never reached the record.
+    for number in find_missed_measurements(transcript, assessment):
+        flags.append(
+            FieldFlag(
+                path="objectiveAssessment.tests",
+                reason="possibly_missed",
+                detail=f"{number} degrees is stated in the recording but appears in no measurement",
+            )
+        )
 
     return ConfidenceReport(
         overall=round(overall, 3),

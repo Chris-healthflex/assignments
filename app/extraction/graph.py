@@ -371,6 +371,7 @@ def _score_confidence(state: ExtractionState, settings: Settings) -> dict:
         state["assessment"],
         state.get("issues", []),
         threshold=settings.confidence_threshold,
+        transcript=state.get("transcript", ""),
     )
     logger.info(
         "Confidence %.2f (threshold %.2f), %d flagged, %d rejected",

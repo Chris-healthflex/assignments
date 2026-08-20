@@ -174,6 +174,11 @@ comments - Any qualifier stated about that measurement, otherwise "".
 Copy numbers exactly as spoken. Do not round, convert, or supply a missing \
 side. If the transcript contains no measurements, return an empty list.
 
+List EVERY measurement stated. They often arrive as one long sequence -
+"... 45 degrees bilaterally, ... 60 degrees bilaterally, ..." - and it is easy
+to skip one in the middle. Work through the sequence and account for every
+number that carries a unit.
+
 {_NO_ECHO}"""
 
 

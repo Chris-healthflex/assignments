@@ -577,16 +577,26 @@ function renderFlags() {
       : '';
   }
 
+  const missed = result.flaggedFields.filter((f) => f.reason === 'possibly_missed').length;
   $('discardedNote').textContent = result.confidence.rejectedCount
     ? 'Values the model produced that could not be traced to the recording. Cleared, and listed below for audit.'
-    : 'Every value above was traced back to something actually said in the recording. Nothing was inferred.';
+    : missed
+      ? 'Nothing was invented. But the recording states ' + missed +
+        (missed === 1 ? ' measurement' : ' measurements') + ' that did not reach the record — see below.'
+      : 'Every value above was traced back to something actually said in the recording. Nothing was inferred.';
+
+  const WHY = {
+    rejected: 'Discarded — not in the recording',
+    possibly_missed: 'Stated in the recording but not captured',
+    not_stated: 'Not stated in the recording',
+  };
+  const KIND = { rejected: ' flag--rejected', possibly_missed: ' flag--missed', not_stated: '' };
 
   outstanding.forEach((f) => {
-    const btn = el('button', 'flag' + (f.reason === 'rejected' ? ' flag--rejected' : ''));
+    const btn = el('button', 'flag' + (KIND[f.reason] || ''));
     btn.type = 'button';
     btn.appendChild(el('div', 'flag__path', f.path));
-    btn.appendChild(el('div', 'flag__why',
-      f.reason === 'rejected' ? (f.detail || 'Discarded — not in the recording') : (f.detail || 'Not stated in the recording')));
+    btn.appendChild(el('div', 'flag__why', f.detail || WHY[f.reason] || WHY.not_stated));
     btn.addEventListener('click', () => revealField(f.path, btn));
     host.appendChild(btn);
   });
@@ -643,7 +653,9 @@ function renderPrintExtras() {
         ? 'Completed by clinician: ' + typed
         : f.reason === 'rejected'
           ? 'Discarded — ' + (f.detail || 'could not be traced to the recording')
-          : 'Not stated in the recording'));
+          : f.reason === 'possibly_missed'
+            ? 'Possibly missed — ' + (f.detail || 'stated in the recording but not captured')
+            : 'Not stated in the recording'));
     host.appendChild(row);
   });
 

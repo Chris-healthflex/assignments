@@ -223,3 +223,65 @@ def test_goals_are_still_flagged_when_neither_bucket_has_any():
     report = score(empty_assessment(), [], threshold=THRESHOLD)
     paths = {f.path for f in report.flaggedFields}
     assert "subjectiveGoals" in paths
+
+
+# --------------------------------------------------------------------------
+# False negatives: measurements the recording states but the record missed
+# --------------------------------------------------------------------------
+from app.extraction.confidence import find_missed_measurements   # noqa: E402
+
+TRANSCRIPT_WITH_FIVE = (
+    "left knee flexion of 124° compared with 130° on the right, "
+    "left knee extension of 20° compared with 5° on the right, "
+    "hip internal rotation of 45° bilaterally, "
+    "hip external rotation of 60° bilaterally and "
+    "ankle dorsiflexion of 4.5° on the left compared with 12° on the right."
+)
+
+
+def test_a_spoken_measurement_missing_from_the_record_is_detected():
+    """Grounding is blind to omissions; this is the other half of the check.
+
+    The reference model emitted eight tests and dropped hip external rotation
+    entirely. Nothing flagged it, and the record simply looked complete.
+    """
+    assessment = FirstAssessment.model_validate(
+        {"objectiveAssessment": {"tests": [
+            {"testName": "Knee flexion", "left": "124", "right": "130"},
+            {"testName": "Knee extension", "left": "20", "right": "5"},
+            {"testName": "Hip internal rotation", "left": "45", "right": "45"},
+            {"testName": "Ankle dorsiflexion", "left": "4.5", "right": "12"},
+        ]}}
+    )
+    assert find_missed_measurements(TRANSCRIPT_WITH_FIVE, assessment) == ["60"]
+
+
+def test_a_complete_record_reports_nothing_missed():
+    assessment = FirstAssessment.model_validate(
+        {"objectiveAssessment": {"tests": [
+            {"testName": "Knee flexion", "left": "124", "right": "130"},
+            {"testName": "Knee extension", "left": "20", "right": "5"},
+            {"testName": "Hip internal rotation", "left": "45", "right": "45"},
+            {"testName": "Hip external rotation", "left": "60", "right": "60"},
+            {"testName": "Ankle dorsiflexion", "left": "4.5", "right": "12"},
+        ]}}
+    )
+    assert find_missed_measurements(TRANSCRIPT_WITH_FIVE, assessment) == []
+
+
+def test_missed_measurements_become_flags_not_values():
+    """It reports the gap. It never guesses which test the number belonged to."""
+    assessment = FirstAssessment.model_validate(
+        {"objectiveAssessment": {"tests": [{"testName": "Knee flexion", "left": "124", "right": "130"}]}}
+    )
+    report = score(assessment, [], threshold=THRESHOLD, transcript=TRANSCRIPT_WITH_FIVE)
+
+    missed = [f for f in report.flaggedFields if f.reason == "possibly_missed"]
+    assert {f.detail.split()[0] for f in missed} == {"4.5", "5", "20", "45", "60", "12"} - {"124", "130"}
+    assert all(f.path == "objectiveAssessment.tests" for f in missed)
+
+
+def test_the_check_is_silent_without_a_transcript():
+    """Scoring is called in tests and tools with no transcript to hand."""
+    report = score(empty_assessment(), [], threshold=THRESHOLD)
+    assert not [f for f in report.flaggedFields if f.reason == "possibly_missed"]

@@ -270,6 +270,10 @@ button { font: inherit; cursor: pointer; }
 }
 .flag:hover, .flag.is-active { border-left-color: var(--ochre); background: var(--ochre-wash); }
 .flag--rejected { border-left-color: #e0c9c9; }
+/* A measurement the recording states but the record never captured. Not an
+ * invention and not an absence - an omission, which needs its own colour. */
+.flag--missed { border-left-color: #b8926a; background: #fbf6ef; }
+.flag--missed:hover, .flag--missed.is-active { border-left-color: #8a5a1e; background: #f7ecdc; }
 .flag--rejected:hover, .flag--rejected.is-active { border-left-color: var(--rose); background: var(--rose-wash); }
 .flag__path { font-family: var(--mono); font-size: 11.5px; color: var(--body); line-height: 1.4; word-break: break-word; }
 .flag__why { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
