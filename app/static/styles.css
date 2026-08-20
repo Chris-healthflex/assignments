@@ -276,6 +276,22 @@ button { font: inherit; cursor: pointer; }
 .signed__t { font-family: var(--serif); font-size: 17px; color: var(--pine); }
 .signed__d { font-size: 12.5px; color: var(--body); margin-top: 5px; line-height: 1.5; }
 
+/* ------------------------------------------------------------ stage timings */
+.timings__toggle { margin-left: 20px; }
+
+.timing { display: grid; grid-template-columns: 240px 1fr 62px; gap: 16px; align-items: center; padding: 7px 0; }
+.timing__label { font-size: 12.5px; color: var(--body); }
+.timing__track { height: 6px; background: #ece8e1; }
+.timing__bar { height: 6px; background: var(--ink); }
+/* The steps that cost no model time are the ones that guarantee the output. */
+.timing__bar--free { background: var(--pine); }
+.timing__secs { font-family: var(--mono); font-size: 12px; text-align: right; color: var(--muted); }
+
+@media (max-width: 620px) {
+  .timing { grid-template-columns: 1fr 54px; }
+  .timing__track { display: none; }
+}
+
 /* ------------------------------------------------- clinician-entered values
  * A form filler has to let the clinician fill the form. Blank fields the
  * recording could not supply are the ones most in need of it, so "Not stated"

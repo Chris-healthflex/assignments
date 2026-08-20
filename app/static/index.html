@@ -82,8 +82,10 @@
     </div>
     <div id="stages"></div>
     <p class="actions__hint" style="margin-top:16px">
-      Stage progress is estimated from measured averages while the request is in
-      flight; the exact per-stage timings are shown once the server responds.
+      Progress is estimated from measured averages while the request is in
+      flight — the server reports one result at the end, not a live feed. The
+      exact per-stage timings appear under “How long did this take?” on the
+      finished record.
     </p>
   </div>
 
@@ -135,6 +137,20 @@
       </div>
 
       <div class="stats" id="stats"></div>
+
+      <button class="conf__how timings__toggle" id="btnTimings" type="button">
+        How long did this take?
+      </button>
+      <div class="breakdown" id="timings" hidden>
+        <p class="breakdown__intro">
+          Where the time actually went. The three steps that guarantee nothing
+          was invented — verifying every value against the transcript, mapping
+          it onto the schema, and scoring it — use no model at all, and together
+          they cost a fraction of a second.
+        </p>
+        <div id="timingRows"></div>
+        <div class="breakdown__total" id="timingTotal"></div>
+      </div>
     </div>
   </section>
 

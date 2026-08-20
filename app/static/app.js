@@ -483,6 +483,55 @@ function renderConfidence() {
   total.appendChild(el('span', null, `Confidence ${c.overall.toFixed(2)}`));
 }
 
+/* Stage keys as the server reports them, in pipeline order, with whether the
+ * step involves a model. The no-model steps are the anti-hallucination layer,
+ * and showing what they cost is the point of this panel. */
+const TIMING_ROWS = [
+  ['transcribe', 'Transcribing audio', true],
+  ['clinicalDetails', 'Clinical details', true],
+  ['subjective', 'Subjective assessment', true],
+  ['objective', 'Objective measurements', true],
+  ['goals', 'Treatment goals', true],
+  ['plan', 'Plan and advice', true],
+  ['grounding', 'Verifying values against the transcript', false],
+  ['assemble', 'Mapping onto the schema', false],
+  ['confidence', 'Scoring confidence', false],
+];
+
+function renderTimings() {
+  const t = result.timings || {};
+  const host = $('timingRows');
+  host.textContent = '';
+
+  const known = TIMING_ROWS.filter(([key]) => t[key] != null);
+  const longest = known.reduce((m, [key]) => Math.max(m, t[key]), 0) || 1;
+
+  known.forEach(([key, label, usesModel]) => {
+    const secs = t[key];
+    const row = el('div', 'timing');
+    row.appendChild(el('div', 'timing__label', label));
+
+    const track = el('div', 'timing__track');
+    const bar = el('div', 'timing__bar' + (usesModel ? '' : ' timing__bar--free'));
+    // A floor so a 0.03s step is still visible rather than vanishing.
+    bar.style.width = Math.max(0.6, (secs / longest) * 100) + '%';
+    track.appendChild(bar);
+    row.appendChild(track);
+
+    row.appendChild(el('div', 'timing__secs', secs < 1 ? secs.toFixed(2) + 's' : secs.toFixed(1) + 's'));
+    host.appendChild(row);
+  });
+
+  const modelTime = known.filter(([, , m]) => m).reduce((sum, [k]) => sum + t[k], 0);
+  const freeTime = known.filter(([, , m]) => !m).reduce((sum, [k]) => sum + t[k], 0);
+
+  const total = $('timingTotal');
+  total.textContent = '';
+  total.appendChild(el('span', null, `Models ${modelTime.toFixed(1)}s`));
+  total.appendChild(el('span', null, `Verification ${freeTime.toFixed(2)}s`));
+  total.appendChild(el('span', null, `Total ${fmtDuration(t.total || modelTime + freeTime)}`));
+}
+
 function renderStats() {
   const a = result.assessment;
   const c = result.confidence;
@@ -642,6 +691,7 @@ function showReview() {
   });
 
   renderConfidence();
+  renderTimings();
   renderStats();
   renderPresentation(a);
   renderObjective(a);
@@ -680,6 +730,12 @@ $('btnHow').addEventListener('click', () => {
   const box = $('breakdown');
   box.hidden = !box.hidden;
   $('btnHow').textContent = box.hidden ? 'How is this calculated?' : 'Hide the calculation';
+});
+
+$('btnTimings').addEventListener('click', () => {
+  const box = $('timings');
+  box.hidden = !box.hidden;
+  $('btnTimings').textContent = box.hidden ? 'How long did this take?' : 'Hide the timings';
 });
 
 $('btnPdf').addEventListener('click', () => window.print());
