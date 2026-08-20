@@ -9,9 +9,9 @@ Whisper and the LLM are synchronous and CPU/GPU bound, so they run in a
 threadpool. Calling them directly would block the event loop for the full
 two-minute pipeline and stall every other request, including /health.
 
-Descriptions here are written to render as the project's documentation:
-Swagger UI at /docs is the only interface, so these strings are a deliverable
-rather than an afterthought.
+Descriptions here are written to render as documentation: a reviewer may
+arrive at /docs rather than at the interface on /, so these strings are a
+deliverable rather than an afterthought.
 """
 
 from __future__ import annotations
@@ -42,7 +42,11 @@ from app.db.models import AssessmentMetadata
 from app.extraction.graph import extract_assessment
 from app.extraction.llm import LLMUnavailableError
 from app.transcription.audio_io import InvalidAudioError
-from app.transcription.whisper_service import TranscriptionError, get_transcriber
+from app.transcription.whisper_service import (
+    EmptyTranscriptError,
+    TranscriptionError,
+    get_transcriber,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +109,10 @@ async def _save_upload(upload: UploadFile, max_bytes: int) -> str:
         "two minutes of extraction for a two-minute recording on local models."
     ),
     responses={
-        400: {"model": ErrorResponse, "description": "Not a readable PCM WAV file"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Not a readable PCM WAV file, or it contains no speech",
+        },
         413: {"model": ErrorResponse, "description": "Upload exceeds the size limit"},
         422: {
             "model": LowConfidenceDetail,
@@ -133,6 +140,11 @@ async def parse_assessment(
         try:
             transcript = await run_in_threadpool(get_transcriber().transcribe, path)
         except InvalidAudioError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+        except EmptyTranscriptError as exc:
+            # The service worked; the upload has no speech in it. Ordering
+            # matters - this subclasses TranscriptionError and must be caught
+            # first, or a silent recording reports the service as down.
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
         except TranscriptionError as exc:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc

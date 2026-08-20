@@ -48,7 +48,19 @@ class Transcript(BaseModel):
 
 
 class TranscriptionError(RuntimeError):
-    """A backend is unavailable, or produced no usable text."""
+    """A Whisper backend is unavailable or misconfigured.
+
+    This is a server-side fault and surfaces as HTTP 503.
+    """
+
+
+class EmptyTranscriptError(TranscriptionError):
+    """The audio decoded fine but contains no speech.
+
+    Deliberately distinct from its parent: the service is working, the upload
+    is unusable. Reporting that as 503 sends the caller looking for an outage
+    when what they need to do is re-record.
+    """
 
 
 # --------------------------------------------------------------------------
@@ -166,9 +178,11 @@ class WhisperTranscriber:
 
         text = " ".join(s.text for s in segments if s.text).strip()
         if not text:
-            raise TranscriptionError(
-                "Whisper produced an empty transcript - the recording may be "
-                "silent or contain no speech."
+            raise EmptyTranscriptError(
+                "No speech was found in this recording. It decoded correctly "
+                f"({duration:.0f} seconds of audio), but Whisper produced no "
+                "words - check that the right file was uploaded and that the "
+                "microphone was recording."
             )
 
         logger.info(

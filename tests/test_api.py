@@ -421,3 +421,45 @@ def test_responses_carry_tracing_headers(client):
     response = client.get("/health")
     assert response.headers["X-Request-ID"]
     assert float(response.headers["X-Process-Time"]) >= 0
+
+
+def test_a_recording_with_no_speech_is_400_not_503(client, monkeypatch):
+    """The service is fine; the upload is unusable.
+
+    Reporting this as 503 sends the caller hunting for an outage when what
+    they need to do is re-record. EmptyTranscriptError subclasses
+    TranscriptionError, so the handler order in routes.py is load-bearing.
+    """
+    from app.api import routes
+    from app.transcription.whisper_service import EmptyTranscriptError
+
+    class Silent:
+        _backend = None
+
+        def transcribe(self, path):
+            raise EmptyTranscriptError("No speech was found in this recording.")
+
+    monkeypatch.setattr(routes, "get_transcriber", lambda: Silent())
+    response = client.post(
+        "/assessments/parse", files={"file": ("silence.wav", wav_bytes(), "audio/wav")}
+    )
+    assert response.status_code == 400
+    assert "no speech" in response.json()["detail"].lower()
+
+
+def test_a_broken_whisper_backend_is_still_503(client, monkeypatch):
+    """The distinction only holds if the parent case keeps its old status."""
+    from app.api import routes
+    from app.transcription.whisper_service import TranscriptionError
+
+    class Broken:
+        _backend = None
+
+        def transcribe(self, path):
+            raise TranscriptionError("faster-whisper is not installed.")
+
+    monkeypatch.setattr(routes, "get_transcriber", lambda: Broken())
+    response = client.post(
+        "/assessments/parse", files={"file": ("s.wav", wav_bytes(), "audio/wav")}
+    )
+    assert response.status_code == 503
