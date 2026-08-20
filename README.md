@@ -501,6 +501,64 @@ code was additionally verified against a live MongoDB 7.0.14 during development.
 
 ---
 
+## Screenshots
+
+A full run of the pipeline, from upload to signed record. Source media lives in
+[`docs/`](docs/).
+
+### Intake
+
+![Upload screen](docs/screenshots/01-intake.png)
+
+### The pipeline running
+
+![Processing](docs/screenshots/02-processing.png)
+
+Progress is estimated while the request is in flight — the server returns one
+result at the end rather than a live feed — and the exact per-stage timings
+appear on the finished record.
+
+### The record
+
+![Review screen](docs/screenshots/03-review.png)
+
+### How the confidence score is derived
+
+![Confidence breakdown](docs/screenshots/04-confidence.png)
+
+Confidence is not the model's own opinion of its work. It is computed
+afterwards from how much of the record was filled from the recording, weighted
+by clinical importance, minus a penalty per value that failed verification.
+
+### Fields needing review
+
+![Flagged fields](docs/screenshots/05-flagged-fields.png)
+
+Three distinct states, and the difference between them is the point of the
+project: `not_stated` (the recording never covered it), `rejected` (a value the
+model produced that could not be traced back), and `possibly_missed` (a
+measurement the recording states that reached no field).
+
+### Where the time goes
+
+![Stage timings](docs/screenshots/06-timings.png)
+
+The three steps that guarantee nothing was invented use no model and cost a
+fraction of a second against roughly two minutes of inference.
+
+### The API
+
+![Swagger UI](docs/screenshots/07-swagger.png)
+
+### Video and exported report
+
+- [`docs/demo.mp4`](docs/demo.mp4) — a full run end to end
+- [`docs/sample-report.pdf`](docs/sample-report.pdf) — a PDF exported from the
+  app, including the appendix that names every flagged field and why it is
+  blank
+
+---
+
 ## Configuration
 
 Everything is environment-driven; see [`.env.example`](.env.example).

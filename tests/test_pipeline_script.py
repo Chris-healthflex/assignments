@@ -144,3 +144,27 @@ def test_sample_output_is_utf8_with_its_symbols_intact():
     # The transcript quotes measurements as "124°"; losing the sign silently
     # would mean the encoding regressed.
     assert "\u00b0" in raw
+
+
+def test_readme_media_links_resolve():
+    """Broken images in a README are worse than no images.
+
+    Skips while the demo media is still to be captured, and starts guarding as
+    soon as any of it lands - the failure mode worth catching is a half-added
+    or renamed set, which ships a page of broken image icons.
+    """
+    import re
+
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    referenced = sorted(set(re.findall(r"docs/[\w./-]+", readme)))
+    present = [ref for ref in referenced if (PROJECT_ROOT / ref).exists()]
+    missing = [ref for ref in referenced if not (PROJECT_ROOT / ref).exists()]
+
+    if not present:
+        pytest.skip(f"demo media not captured yet ({len(missing)} files expected in docs/)")
+
+    assert not missing, (
+        "README references media that is not in the repository: "
+        + ", ".join(missing)
+        + " - add the files to docs/ or remove the links before pushing."
+    )
