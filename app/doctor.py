@@ -260,9 +260,13 @@ def main() -> int:
         return 1
 
     print("-" * 58)
+    # Read from the environment rather than hardcoded, because run.bat and
+    # run.sh set it before calling us. A preflight that advertises a different
+    # address from the one about to be served is worse than saying nothing.
+    port = os.environ.get("PORT", "8000")
     print("Ready. Start the service with:\n")
-    print("    uvicorn app.main:app --reload\n")
-    print("Then open http://localhost:8000/ui/\n")
+    print(f"    uvicorn app.main:app --reload --port {port}\n")
+    print(f"Then open http://localhost:{port}/ui/\n")
     if not args.warm:
         print("Tip: 'python -m app.doctor --warm' pre-downloads the Whisper")
         print("     weights so the first upload is not also a 1.5 GB download.\n")

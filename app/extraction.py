@@ -158,8 +158,18 @@ together from different parts of a sentence, and do not tidy the wording: the
 span is checked against the transcript automatically, and a field whose span
 cannot be found there is discarded as unsupported.
 
-Quote the shortest span that still establishes the value. Include the words
-that give it meaning, such as a side, a unit or a sign, and nothing further."""
+Quote the shortest span that does both of these things: establishes the value,
+and matches one place in the transcript and no other. Never answer with the
+value by itself. A bare number, or a bare word such as "degrees", occurs in
+many places at once and so points at none of them. Add only the few neighbouring
+words needed to make the span unique, such as the body part, the side, the unit
+or a sign, and nothing beyond that.
+
+Good: "knee flexion of 124 degrees"
+Good: "knee gig 5 degrees on the right"
+Bad:  "124"
+Bad:  "degrees"
+"""
 
 # group -> (response model, sections it fills, what to extract)
 GROUP_SPECS: dict[str, tuple[type[BaseModel], tuple[str, ...], str]] = {

@@ -28,6 +28,20 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 
+# The recording. The brief supplies clinical_assessment.wav as an input file
+# and asks for code, tests and a README back, so the audio is not part of what
+# is submitted. It is also a real patient consultation, which does not belong
+# in a shared repository. Extensions match what the upload endpoint accepts, so
+# a recording in any supported format is covered.
+*.wav
+*.wave
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.webm
+audio/
+
 # Derived transcripts and captured API responses. Both embed the transcript,
 # which is patient audio in text form. Never commit either.
 transcript.txt

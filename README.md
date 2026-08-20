@@ -8,61 +8,12 @@ agent that must quote the transcript for every value it produces, and every
 quote is verified in our own code before the value is returned.
 
 **To run it:** `run.bat` on Windows or `./run.sh` on macOS and Linux. That builds
-the environment, verifies it, and starts the server. See
-[Quick start](#quick-start).
+the environment, verifies it, starts the server, and opens the review interface
+and API documentation in your browser.
 
----
-
-## What this achieves
-
-**All six deliverables, working end to end against the real recording and a live
-MongoDB Atlas cluster.**
-
-| # | Deliverable | Where |
-|---|---|---|
-| D1 | FastAPI service | [`app/main.py`](app/main.py): 4 endpoints + `/health` |
-| D2 | Whisper transcription module | [`app/transcription.py`](app/transcription.py): local, word-level, disk-cached |
-| D3 | LangGraph agent with Pydantic output | [`app/extraction.py`](app/extraction.py): 3-node fan-out, grounding, repair loop |
-| D4 | MongoDB models, connection, save/retrieve | [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
-| D5 | Test script printing JSON | [`tests/run_pipeline.py`](tests/run_pipeline.py) |
-| D6 | README with setup and design decisions | this file |
-
-### A full run, through the live API
-
-```
-POST /assessments/parse   422    46 fields extracted, 0 unsourced, overall 89%
-POST /assessments         201    id 6a875278f35f46853c5b0691
-GET  /assessments/{id}    200    contract identical: True
-GET  /assessments?date=   200    2026-08-20 → 1,  2020-01-01 → 0
-
-bad id → 404   unknown id → 404   bad date → 422   pdf upload → 415
-```
-
-Measurements extracted from the recording, every one traced to a quote:
-
-```
-knee flexion           L 124   R 130   degrees
-knee extension         L 20    R 5     degrees   ← flagged at 0.05, see Problems
-hip internal rotation  L 45    R 45    degrees
-hip external rotation  L 60    R 60    degrees
-ankle dorsiflexion     L 4.5   R 12    degrees
-```
-
-### What is verifiably true about the output
-
-- **The contract is exact.** Seven sections, in order, no extra keys, no renamed
-  keys, arrays that stay arrays, strings that are never null, checked against
-  the serialised JSON on the wire, not against the model.
-- **Nothing is invented.** Every `targetDate` is `""`, because the recording
-  states no dates. `objectiveGoals` and `patientAdvice` are empty, because the
-  clinician set no numeric targets and gave no advice. Empty is a correct answer
-  here, and the system prefers it to a plausible guess.
-- **Low-confidence values are held back**, per field, with the reason and the
-  evidence behind them.
-- **195 automated checks pass:** 137 Python tests (2 skip without a cached
-  transcript) and 58 frontend checks.
-- **WAV, MP3 and M4A** were each transcoded from the same source and produced
-  identical transcripts.
+Setup comes first below, both as that one command and as the individual commands
+it runs. What the system produces, how it works and why it is built this way all
+follow after it.
 
 ---
 
@@ -77,6 +28,10 @@ Two values have to come from you, both free:
 | `GOOGLE_API_KEY` | https://aistudio.google.com/apikey |
 | `MONGODB_URI` | Atlas free tier, or a local `mongod` |
 
+There are two ways in: one command, or the six commands it runs for you. Both
+are below. Why the pipeline is built the way it is comes later, under
+[How it works](#how-it-works) and [What changed along the way](#what-changed-along-the-way-and-why).
+
 ### One command
 
 ```bash
@@ -88,6 +43,39 @@ That creates the virtual environment, installs the pins, checks the setup, and
 starts the server. Run it with no `.env` present and it copies the example, names
 the two values to fill in, and stops, rather than starting a server that will
 fail on the first upload.
+
+It then prints where to go, and opens all five in your browser as soon as the
+server answers:
+
+```
+ ============================================================
+  Running at  http://localhost:8000/ui/
+ ============================================================
+
+  Review interface   http://localhost:8000/ui/
+  API explorer       http://localhost:8000/docs
+  API reference      http://localhost:8000/redoc
+  Health check       http://localhost:8000/health
+  Saved assessments  http://localhost:8000/assessments
+```
+
+The tabs are opened by [`app/browser.py`](app/browser.py), which waits for
+`/health` to answer first. Opening them the moment the script reaches this line
+would race uvicorn, which has not bound the port yet, and land every tab on a
+connection error while a perfectly healthy service started up behind it.
+
+Two environment variables adjust this:
+
+| Variable | Effect |
+|---|---|
+| `PORT` | Serve somewhere other than 8000. Every address above follows it, including the ones the preflight prints. |
+| `OPEN_BROWSER=0` | Start the server without opening anything. |
+
+```bash
+set PORT=8080 && run.bat            # Windows
+PORT=8080 ./run.sh                  # macOS / Linux
+set OPEN_BROWSER=0 && run.bat       # no tabs
+```
 
 Other modes:
 
@@ -103,20 +91,42 @@ so the first upload is slow only because of CPU, not because of a download.
 Safe to re-run. The venv and installed packages are reused, so a second run
 reaches the server in about a second.
 
-### Or by hand
+### Or step by step
+
+`run.bat` is a wrapper around these six commands. Running them yourself does the
+same work, and is the thing to fall back on if any single step misbehaves:
 
 ```bash
+# 1. Create a virtual environment and activate it
 python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
+
+# 2. Install the pinned dependencies
 pip install -r requirements.txt
 
+# 3. Supply the two values from the table above
 cp .env.example .env            # then fill in GOOGLE_API_KEY and MONGODB_URI
-python -m app.doctor            # verifies the above before you spend time on it
-uvicorn app.main:app --reload
+
+# 4. Check all of that before spending time on it
+python -m app.doctor            # --warm also pre-downloads Whisper and tests the key
+
+# 5. Start the service
+uvicorn app.main:app --reload --port 8000
+
+# 6. Run the tests, in a second terminal
+pytest
 ```
 
-Open **http://localhost:8000/ui/** for the review interface, or **/docs** for the
-OpenAPI explorer.
+Then open whichever of these you want, since nothing opens by itself on this
+route:
+
+| Address | What it is |
+|---|---|
+| `http://localhost:8000/ui/` | Review interface: upload, review, correct, save |
+| `http://localhost:8000/docs` | API explorer, with every endpoint callable in the page |
+| `http://localhost:8000/redoc` | The same API as a reference document |
+| `http://localhost:8000/health` | Liveness, including whether MongoDB is reachable |
+| `http://localhost:8000/assessments` | Everything saved so far, newest first |
 
 Place the consultation recording at `./clinical_assessment.wav`, then:
 
@@ -138,8 +148,72 @@ python -m tests.run_pipeline clinical_assessment.wav > out.json
    cache round-trip and print the command that satisfies them. Expected on a
    fresh clone, not a failure.
 
-The audio file is **not** in this repository and `*.wav` is **not** in
-`.gitignore`, so check `git status` before committing if you drop a recording in.
+The recording is **not** in this repository. The brief supplies it as an input
+file and asks for code, tests and this README back, so audio is in `.gitignore`:
+a real patient consultation does not belong in a shared repository.
+
+---
+
+## What this achieves
+
+**All six deliverables, working end to end against the real recording and a live
+MongoDB Atlas cluster.**
+
+| # | Deliverable | Where |
+|---|---|---|
+| D1 | FastAPI service | [`app/main.py`](app/main.py): 4 endpoints + `/health` |
+| D2 | Whisper transcription module | [`app/transcription.py`](app/transcription.py): local, word-level, disk-cached |
+| D3 | LangGraph agent with Pydantic output | [`app/extraction.py`](app/extraction.py): 3-node fan-out, grounding, repair loop |
+| D4 | MongoDB models, connection, save/retrieve | [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
+| D5 | Test script printing JSON | [`tests/run_pipeline.py`](tests/run_pipeline.py) |
+| D6 | README with setup and design decisions | this file |
+
+### A full run, through the live API
+
+```
+POST /assessments/parse   422    45 fields extracted, overall 71%, 17 held back
+POST /assessments         201    id 6a877bf166a9d4f67a1aee74
+GET  /assessments/{id}    200    contract identical: True
+GET  /assessments?date=   200    2026-08-20 → 9,  2020-01-01 → 0
+
+bad id → 404   unknown id → 404   bad date → 422   pdf upload → 415
+```
+
+Measurements extracted from the recording, every one traced to a quote:
+
+```
+knee flexion           L 124   R 130   degrees
+knee extension         L 20    R 5     degrees   ← flagged at 0.05, see Problems
+hip internal rotation                  degrees   ← named, no numbers returned
+hip external rotation                  degrees   ← named, no numbers returned
+ankle dorsiflexion     L 4.5   R 12    degrees
+```
+
+That 71% is the honest number rather than the flattering one, and it is worth
+saying why it moved. An earlier version of the prompt let the model answer with
+the value itself in place of a quote, citing `"5"` as its evidence for the value
+`5`. That scores beautifully (overall 95%, two fields held back) and it is
+worthless: `"5"` occurs twice in this recording, so the audio check silently took
+the better of the two and the misheard measurement below came back at **1.00**.
+The prompt now requires a span that matches one place and no other. Scores fell
+because they are now being earned.
+
+### What is verifiably true about the output
+
+- **The contract is exact.** Seven sections, in order, no extra keys, no renamed
+  keys, arrays that stay arrays, strings that are never null, checked against
+  the serialised JSON on the wire, not against the model.
+- **Nothing is invented.** Across four runs today every `targetDate` came back
+  `""`, because the recording states no dates, and `patientAdvice` came back
+  empty, because the clinician gave none. Empty is a correct answer here, and
+  the system prefers it to a plausible guess. Which of the two goal lists the
+  seven goals land in does vary between runs; see Known limitations.
+- **Low-confidence values are held back**, per field, with the reason and the
+  evidence behind them.
+- **202 automated checks pass:** 144 Python tests (2 skip without a cached
+  transcript) and 58 frontend checks.
+- **WAV, MP3 and M4A** were each transcoded from the same source and produced
+  identical transcripts.
 
 ---
 
@@ -328,6 +402,19 @@ Three changes fixed it:
   additionally sits behind a semaphore, because faster-whisper holds one model in
   memory and is not safe to call from several threads at once. Extraction is
   deliberately *not* serialised: it is network-bound and already paced.
+- **The launcher owns the port, and the browser waits for the server.** The
+  scripts pass `--port` explicitly rather than letting uvicorn's default decide,
+  so the address they print is the address being served: they agreed at 8000 only
+  by coincidence before, and any `PORT` override would have made the message a
+  lie. [`app/browser.py`](app/browser.py) then polls `/health` before opening
+  anything, because the tabs are launched from the line above `uvicorn` and the
+  port is not bound yet at that point. It treats a `503` as ready, since a
+  service correctly reporting that MongoDB is unreachable is worth looking at.
+- **The scripts share their logic through Python, not through two shells.**
+  Preflight lives in [`app/doctor.py`](app/doctor.py) and tab-opening in
+  [`app/browser.py`](app/browser.py), so `run.bat` and `run.sh` stay thin
+  wrappers. Two shell implementations of the same checks drift, and the one that
+  drifts is always the one you are not developing on.
 
 ---
 
@@ -415,7 +502,7 @@ as an ordinary blank.
 ### Tests that try to break it
 
 ```bash
-pytest                    # 137 passed, 2 skipped
+pytest                    # 142 passed, 2 skipped; 144 once a transcript is cached
 run.bat test              # the same, without activating the venv first
 cd frontend && npm test   # 58 checks
 ```
@@ -509,14 +596,26 @@ calibration. It lives in config precisely because it is a knob, not a law.
 
 **Extraction varies between runs.** Temperature is 0, but Gemini is not
 deterministic. Across runs of the same recording, field counts ranged from 29 to
-46 and the set of low-confidence fields shifted slightly. The measurements and
-their scores were stable; the softer prose fields were not.
+46 and the set of low-confidence fields shifted. The five measurements and the
+seven goals were stable, as was every empty field; what moved was which of the
+two goal lists the goals landed in, whether the hip rotations came back with
+numbers or only names, and which prose fields fell below the bar.
 
-**Units are occasionally reported as unsourced.** The model sometimes omits a
-citation for `unitName` even though the transcript says "degrees" eight times.
-The system correctly refuses to vouch for an uncited value, but the effect is
-noise on an obviously-correct word. Retrying failed groups reduced it; a targeted
-prompt instruction would likely finish the job.
+**Fields that share a value share a citation.** Matching is by value, so the five
+`unitName` fields, all holding "degrees", all resolve to whichever citation the
+model raised for "degrees" and inherit that one span's audio score. Grouping
+citations by the call that produced them fixed the cross-section case; telling
+two fields apart *within* one call needs the model to say which field each
+citation belongs to, which is the array-index problem this design deliberately
+keeps away from the model.
+
+**A longer quote scores lower, by construction.** `audioConfidence` is the
+weakest word inside the quoted span, so a span that pins down its value also
+drags in more words that Whisper may have heard poorly. Requiring spans that
+locate uniquely therefore lowered scores across the board: on this recording
+"degrees" in "knee flexion of 124 degrees" was heard at 52%, and every field
+citing that span now sits below the 0.6 bar. That is a real signal rather than
+noise, but it is the reason the overall number reads 71% rather than 95%.
 
 **Free-tier rate limits shape the runtime.** A full parse takes ~107 seconds
 end-to-end with a cached transcript, most of it waiting on the client-side rate

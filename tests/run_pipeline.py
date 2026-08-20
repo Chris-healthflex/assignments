@@ -43,8 +43,20 @@ def say(message: str = "") -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def stage(number: int, title: str) -> None:
-    say(f"\n{BAR}\n{number}. {title}\n{BAR}")
+_stage = 0
+
+
+def stage(title: str) -> None:
+    """Print the next stage heading.
+
+    Numbered as printed rather than by a literal at each call site. The two
+    paths through this script have different stage counts, and `--no-save`
+    skips one of them, so any hardcoded number is wrong for some run: the
+    closing stage used to be 9 and came straight after stage 5.
+    """
+    global _stage
+    _stage += 1
+    say(f"\n{BAR}\n{_stage}. {title}\n{BAR}")
 
 
 def ok(message: str) -> None:
@@ -152,7 +164,7 @@ async def run_direct(audio: Path | None, transcript_file: Path | None, save: boo
     settings = get_settings()
     failures = 0
 
-    stage(1, "Transcription")
+    stage("Transcription")
     transcription = None
     if transcript_file is not None:
         transcript = transcript_file.read_text(encoding="utf-8").strip()
@@ -169,7 +181,7 @@ async def run_direct(audio: Path | None, transcript_file: Path | None, save: boo
         ok(f"{audio.name}: {transcription.durationSec:.1f}s, {words} words, language {transcription.language!r}")
     say(f"\n  {transcript[:220]}{'...' if len(transcript) > 220 else ''}")
 
-    stage(2, "Extraction")
+    stage("Extraction")
     try:
         result = extract(transcript, transcription)
     except ExtractionFailed as exc:
@@ -187,7 +199,7 @@ async def run_direct(audio: Path | None, transcript_file: Path | None, save: boo
         say("  check the log above for 429 / quota errors from the model provider")
         return 1, payload
 
-    stage(3, "Contract")
+    stage("Contract")
     problems = check_contract(payload)
     for problem in problems:
         bad(problem)
@@ -199,7 +211,7 @@ async def run_direct(audio: Path | None, transcript_file: Path | None, save: boo
     for section, count in _populated(payload).items():
         say(f"    {section:<24} {count}")
 
-    stage(4, "Confidence")
+    stage("Confidence")
     report_confidence(result.flags, settings.extraction_confidence_threshold)
 
     if not save:
@@ -239,7 +251,7 @@ async def persist_and_verify(stored: StoredAssessment, payload: dict[str, Any]) 
     from app import db
 
     failures = 0
-    stage(5, "MongoDB")
+    stage("MongoDB")
     try:
         if not await db.ping():
             bad("no MongoDB at MONGODB_URI; rerun with --no-save to skip persistence")
@@ -300,7 +312,7 @@ async def run_http(audio: Path, base_url: str, save: bool) -> tuple[int, dict]:
     threshold = get_settings().extraction_confidence_threshold
 
     async with httpx.AsyncClient(base_url=base_url, timeout=900.0) as client:
-        stage(1, "Service")
+        stage("Service")
         try:
             health = await client.get("/health")
         except httpx.HTTPError as exc:
@@ -311,7 +323,7 @@ async def run_http(audio: Path, base_url: str, save: bool) -> tuple[int, dict]:
         (ok if health.status_code == 200 else bad)(f"/health {health.status_code} {body}")
         failures += health.status_code != 200
 
-        stage(2, "POST /assessments/parse")
+        stage("POST /assessments/parse")
         with audio.open("rb") as handle:
             response = await client.post(
                 "/assessments/parse", files={"file": (audio.name, handle, "audio/wav")}
@@ -340,7 +352,7 @@ async def run_http(audio: Path, base_url: str, save: bool) -> tuple[int, dict]:
                     bad(f"detail points at a field that is not in the response: {error['loc']}")
                     failures += 1
 
-        stage(3, "Contract")
+        stage("Contract")
         problems = check_contract(payload)
         for problem in problems:
             bad(problem)
@@ -348,14 +360,14 @@ async def run_http(audio: Path, base_url: str, save: bool) -> tuple[int, dict]:
             ok("the JSON on the wire matches the contract exactly")
         failures += len(problems)
 
-        stage(4, "Confidence")
+        stage("Confidence")
         report_confidence(flags, threshold)
 
         if not save:
             say("\n  --no-save: skipping the write endpoints")
             return (1 if failures else 0), payload
 
-        stage(5, "POST /assessments, then read it back")
+        stage("POST /assessments, then read it back")
         saved = await client.post(
             "/assessments",
             json={
@@ -396,7 +408,7 @@ async def run_http(audio: Path, base_url: str, save: bool) -> tuple[int, dict]:
         else:
             ok("the date filter excludes other days")
 
-        stage(6, "Rejections")
+        stage("Rejections")
         for label, files, expected in (
             ("a PDF", {"file": ("notes.pdf", b"%PDF-1.4", "application/pdf")}, 415),
             ("an empty file", {"file": ("empty.wav", b"", "audio/wav")}, 400),
@@ -469,7 +481,7 @@ def main() -> int:
         code, payload = asyncio.run(run_direct(args.audio, args.transcript, not args.no_save))
 
     if payload:
-        stage(9, "FirstAssessment")
+        stage("FirstAssessment")
         say("  (the document below is on stdout; everything else is on stderr)\n")
         document = json.dumps(payload, indent=2, ensure_ascii=False)
         print(document)

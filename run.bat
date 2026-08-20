@@ -7,6 +7,14 @@ REM    run.bat warm     the same, but also pre-download the Whisper weights
 REM    run.bat test     run the test suite
 REM    run.bat check    only run the preflight checks, do not serve
 REM
+REM  The service listens on http://localhost:8000. Once it answers, the review
+REM  interface, both API documentation views and two live endpoints open in the
+REM  browser by themselves. Set PORT first if 8000 is already taken, or
+REM  OPEN_BROWSER=0 to start the server without opening anything:
+REM
+REM    set PORT=8080 && run.bat
+REM    set OPEN_BROWSER=0 && run.bat
+REM
 REM  Safe to run repeatedly: the venv and the installed packages are reused,
 REM  so a second run reaches the server in seconds.
 REM
@@ -20,6 +28,12 @@ cd /d "%~dp0"
 set "VENV=.venv"
 set "PY=%VENV%\Scripts\python.exe"
 set "STAMP=%VENV%\.deps-installed"
+
+REM The port is set here rather than left to uvicorn's default, so the address
+REM printed below is the address actually being served. Respects PORT if the
+REM caller already set one, which is the way out when 8000 is occupied.
+if not defined PORT set "PORT=8000"
+set "URL=http://localhost:%PORT%"
 
 echo.
 echo  Clinical First Assessment - setup and launch
@@ -123,9 +137,24 @@ if errorlevel 1 (
 
 :serve
 echo.
-echo  Starting the service. Press Ctrl+C to stop.
-echo  Review interface: http://localhost:8000/ui/
-echo  API explorer:     http://localhost:8000/docs
+echo  ============================================================
+echo   Running at  %URL%/ui/
+echo  ============================================================
 echo.
-"%PY%" -m uvicorn app.main:app --reload
+echo   Review interface   %URL%/ui/
+echo   API explorer       %URL%/docs
+echo   API reference      %URL%/redoc
+echo   Health check       %URL%/health
+echo   Saved assessments  %URL%/assessments
+echo.
+echo   Press Ctrl+C to stop.
+echo.
+REM Opens the tabs above once the server answers. Backgrounded with /b so it
+REM waits alongside uvicorn instead of before it: uvicorn has not bound the
+REM port yet at this point, so opening them here would land on a dead socket.
+if not "%OPEN_BROWSER%"=="0" start "" /b "%PY%" -m app.browser
+REM Bound to 127.0.0.1 rather than 0.0.0.0 on purpose: this process handles
+REM patient audio, and it has no business being reachable from the network
+REM until someone decides that deliberately.
+"%PY%" -m uvicorn app.main:app --reload --host 127.0.0.1 --port %PORT%
 exit /b %errorlevel%
