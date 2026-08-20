@@ -13,31 +13,15 @@ router = APIRouter(prefix="/assessments", tags=["Assessments"])
     "/parse",
     response_model=FirstAssessment,
     status_code=status.HTTP_200_OK,
-    summary="EP1 - Parse single WAV audio into structured FirstAssessment JSON",
-    description="Uploads a clinician-patient WAV recording, transcribes via Whisper, extracts clinical entities via LangGraph, and validates against FirstAssessment schema."
+    summary="EP1 - Parse a single WAV audio into structured FirstAssessment JSON",
+    description="Uploads a single combined clinical session WAV recording, transcribes via Whisper, extracts clinical entities via LangGraph, and validates against the FirstAssessment schema."
 )
 async def parse_assessment(
-    file: Annotated[UploadFile, File(description="Clinical session WAV audio recording")],
+    file: Annotated[UploadFile, File(description="Clinical session WAV audio recording (combined doctor-patient)")],
     service: Annotated[AssessmentService, Depends(get_assessment_service)],
 ) -> FirstAssessment:
     logger.info("Received POST /assessments/parse request with file '%s'", file.filename)
     return await service.parse_audio(file)
-
-
-@router.post(
-    "/parse-dual",
-    response_model=FirstAssessment,
-    status_code=status.HTTP_200_OK,
-    summary="EP1-Dual - Parse separate Doctor & Patient WAV recordings",
-    description="Uploads Doctor audio and Patient response audio, transcribes each with Whisper, constructs an attributed consultation transcript, and extracts structured FirstAssessment JSON."
-)
-async def parse_dual_assessment(
-    doctor_file: Annotated[UploadFile, File(description="Doctor's audio WAV recording")],
-    patient_file: Annotated[UploadFile, File(description="Patient's response WAV recording")],
-    service: Annotated[AssessmentService, Depends(get_assessment_service)],
-) -> FirstAssessment:
-    logger.info("Received POST /assessments/parse-dual request with doctor='%s', patient='%s'", doctor_file.filename, patient_file.filename)
-    return await service.parse_dual_audio(doctor_file, patient_file)
 
 
 

@@ -122,18 +122,4 @@ def test_list_assessments_with_date_filter(test_client: TestClient, sample_first
     assert empty_resp.json()["total"] == 0
 
 
-def test_parse_dual_assessment_endpoint(test_client: TestClient, sample_wav_content: bytes):
-    """Verify POST /assessments/parse-dual with Doctor and Patient audio uploads."""
-    files = {
-        "doctor_file": ("doctor.wav", io.BytesIO(sample_wav_content), "audio/wav"),
-        "patient_file": ("patient.wav", io.BytesIO(sample_wav_content), "audio/wav"),
-    }
-    response = test_client.post("/assessments/parse-dual", files=files)
-    assert response.status_code == 200
-
-    data = response.json()
-    assert "clinicalDetails" in data
-    assert "objectiveAssessment" in data
-    assert "recommendation" in data
-    assert "patientAdvice" in data
 

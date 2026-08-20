@@ -42,39 +42,6 @@ class AssessmentService:
         logger.info("Successfully completed audio parsing into FirstAssessment model.")
         return first_assessment
 
-    async def parse_dual_audio(self, doctor_file: UploadFile, patient_file: UploadFile) -> FirstAssessment:
-        """
-        Executes dual-stream sequential pipeline:
-        Transcribes Doctor's audio and Patient's response audio separately,
-        combines them into an attributed consultation transcript,
-        and extracts structured clinical entities into FirstAssessment JSON.
-        """
-        logger.info(
-            "Starting dual audio assessment parse: doctor='%s', patient='%s'",
-            doctor_file.filename, patient_file.filename
-        )
-
-        # Stage 1: Validate both WAV files
-        doctor_bytes = await self.audio_validator.validate_upload(doctor_file)
-        patient_bytes = await self.audio_validator.validate_upload(patient_file)
-
-        # Stage 2: Transcribe both files via Whisper
-        doctor_transcript = await self.transcriber.transcribe(doctor_bytes, filename=doctor_file.filename or "doctor.wav")
-        patient_transcript = await self.transcriber.transcribe(patient_bytes, filename=patient_file.filename or "patient.wav")
-
-        # Stage 3: Combine sequentially with speaker attribution
-        combined_transcript = (
-            f"Doctor:\n{doctor_transcript.strip()}\n\n"
-            f"Patient:\n{patient_transcript.strip()}"
-        )
-        logger.info("Combined sequential doctor-patient transcript (%d characters)", len(combined_transcript))
-
-        # Stage 4: LangGraph Clinical Extraction & Pydantic Validation
-        first_assessment = await self.extraction_service.extract_assessment(combined_transcript)
-        logger.info("Successfully completed dual audio parsing into FirstAssessment model.")
-        return first_assessment
-
-
     async def save_assessment(self, assessment: FirstAssessment) -> SaveAssessmentResponse:
         """Persists a FirstAssessment instance to MongoDB."""
         doc: AssessmentDocument = self.repository.save_assessment(assessment)

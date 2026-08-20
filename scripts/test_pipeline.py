@@ -1,20 +1,19 @@
 """
 Standalone pipeline execution script:
-Takes one or two clinical WAV files (single session or doctor + patient tracks),
-transcribes via Whisper, combines with speaker attribution,
-extracts clinical entities via LangGraph, validates against FirstAssessment Pydantic v2 schema,
+Takes a single combined clinical WAV file (doctor + patient recorded together),
+transcribes via Whisper, extracts clinical entities via LangGraph,
+validates against FirstAssessment Pydantic v2 schema,
 and prints the exact JSON output.
 
 Usage:
-    # Single audio file:
-    python scripts/test_pipeline.py [path_to_audio.wav]
+    # Default: uses data/clinical_assessment.wav
+    python scripts/test_pipeline.py
 
-    # Dual audio files (Doctor followed by Patient):
-    python scripts/test_pipeline.py [path_to_doctor.wav] [path_to_patient.wav]
+    # Explicit path:
+    python scripts/test_pipeline.py path/to/your_audio.wav
 """
 
 import asyncio
-import io
 import json
 import os
 import sys
@@ -38,8 +37,8 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
         pass
 
 
-async def run_pipeline(paths: list[Path] | None = None) -> None:
-    """Executes the complete clinical extraction pipeline."""
+async def run_pipeline(path: Path | None = None) -> None:
+    """Executes the complete single-audio clinical extraction pipeline."""
     setup_logging()
     settings = get_settings()
 
@@ -47,32 +46,25 @@ async def run_pipeline(paths: list[Path] | None = None) -> None:
     print("CLINICAL AUDIO -> STRUCTURED FIRSTASSESSMENT PIPELINE")
     print("=" * 70)
 
-    # 1. Locate Audio File(s)
-    resolved_paths: list[Path] = []
-    if paths:
-        for p in paths:
-            if p.exists() and p.is_file():
-                resolved_paths.append(p)
+    # 1. Locate Audio File
+    resolved_path: Path | None = None
 
-    if not resolved_paths:
-        # Check data/ directory for any .wav files
+    if path and path.exists() and path.is_file():
+        resolved_path = path
+
+    if not resolved_path:
+        # Default: data/clinical_assessment.wav
+        default = Path("data/clinical_assessment.wav")
+        if default.exists():
+            resolved_path = default
+
+    if not resolved_path:
+        # Fallback: any .wav in data/
         data_dir = Path("data")
         if data_dir.exists():
-            wav_in_data = sorted(list(data_dir.glob("*.wav")))
-            if wav_in_data:
-                resolved_paths = wav_in_data[:2]
-
-    if not resolved_paths:
-        # Check candidate standard file paths
-        candidate_defaults = [
-            Path("clinical_assessment.wav"),
-            Path("data/clinical_assessment.wav"),
-            Path("../clinical_assessment.wav"),
-        ]
-        for p in candidate_defaults:
-            if p.exists() and p.is_file():
-                resolved_paths.append(p)
-                break
+            wavs = sorted(data_dir.glob("*.wav"))
+            if wavs:
+                resolved_path = wavs[0]
 
     validator = AudioValidator()
     transcriber = get_transcriber()
@@ -82,67 +74,37 @@ async def run_pipeline(paths: list[Path] | None = None) -> None:
         print("      Note: No Whisper API key provided; using fallback mock transcriber.")
         transcriber = MockWhisperTranscriber()
 
-    combined_transcript = ""
+    transcript = ""
 
-    if len(resolved_paths) >= 2:
-        # Dual-track mode (Doctor + Patient)
-        doc_path, pat_path = resolved_paths[0], resolved_paths[1]
-        print(f"\n[1/4] Detected DUAL audio tracks:")
-        print(f"      Track 1 (Doctor):  {doc_path.resolve()} ({doc_path.stat().st_size} bytes)")
-        print(f"      Track 2 (Patient): {pat_path.resolve()} ({pat_path.stat().st_size} bytes)")
-
-        print("\n[2/4] Validating WAV audio structures...")
-        with open(doc_path, "rb") as f:
-            doc_bytes = f.read()
-        with open(pat_path, "rb") as f:
-            pat_bytes = f.read()
-
-        validator._validate_wav_content(doc_bytes)
-        validator._validate_wav_content(pat_bytes)
-        print("      Both WAV files validated successfully.")
-
-        print("\n[3/4] Transcribing tracks via Whisper...")
-        doc_transcript = await transcriber.transcribe(doc_bytes, filename=doc_path.name)
-        pat_transcript = await transcriber.transcribe(pat_bytes, filename=pat_path.name)
-
-        print(f"\n      --- Doctor Transcript ({len(doc_transcript)} chars) ---")
-        print(f'      "{doc_transcript.strip()}"')
-        print(f"\n      --- Patient Transcript ({len(pat_transcript)} chars) ---")
-        print(f'      "{pat_transcript.strip()}"')
-
-        combined_transcript = f"Doctor:\n{doc_transcript.strip()}\n\nPatient:\n{pat_transcript.strip()}"
-
-    elif len(resolved_paths) == 1:
-        # Single-file mode
-        single_path = resolved_paths[0]
-        print(f"\n[1/4] Found audio file: {single_path.resolve()} ({single_path.stat().st_size} bytes)")
+    if resolved_path:
+        print(f"\n[1/4] Audio file: {resolved_path.resolve()} ({resolved_path.stat().st_size} bytes)")
 
         print("\n[2/4] Validating WAV audio structure...")
-        with open(single_path, "rb") as f:
+        with open(resolved_path, "rb") as f:
             audio_bytes = f.read()
         validator._validate_wav_content(audio_bytes)
         print("      WAV validation PASSED.")
 
         print("\n[3/4] Transcribing audio via Whisper...")
-        combined_transcript = await transcriber.transcribe(audio_bytes, filename=single_path.name)
-        print(f"      Transcript ({len(combined_transcript)} chars):")
-        print(f'      "{combined_transcript.strip()}"')
+        transcript = await transcriber.transcribe(audio_bytes, filename=resolved_path.name)
+        print(f"      Transcript ({len(transcript)} chars):")
+        print(f'      "{transcript.strip()}"')
 
     else:
-        # No files on disk -> synthetic demo
-        print("\n[1/4] No WAV files found on disk or in data/ directory.")
+        # No file on disk -> synthetic demo
+        print("\n[1/4] No WAV file found.")
         print("      Generating synthetic clinical session audio for testing...")
         audio_bytes = create_mock_wav_bytes(duration_sec=2.0)
         validator._validate_wav_content(audio_bytes)
-        combined_transcript = await transcriber.transcribe(audio_bytes, filename="synthetic.wav")
-        print(f"      Transcript ({len(combined_transcript)} chars):")
-        print(f'      "{combined_transcript.strip()}"')
+        transcript = await transcriber.transcribe(audio_bytes, filename="synthetic.wav")
+        print(f"      Transcript ({len(transcript)} chars):")
+        print(f'      "{transcript.strip()}"')
 
     # 4. LangGraph Extraction & Pydantic Validation
     print("\n[4/5] Running LangGraph extraction agent & FirstAssessment validation...")
     extraction_service = ClinicalExtractionService()
     try:
-        assessment = await extraction_service.extract_assessment(combined_transcript)
+        assessment = await extraction_service.extract_assessment(transcript)
         json_output = json.dumps(assessment.model_dump(), indent=2)
 
         print("\n" + "=" * 70)
@@ -187,8 +149,6 @@ async def run_pipeline(paths: list[Path] | None = None) -> None:
     print("=" * 70)
 
 
-
-
 if __name__ == "__main__":
-    input_paths = [Path(arg) for arg in sys.argv[1:]] if len(sys.argv) > 1 else None
-    asyncio.run(run_pipeline(input_paths))
+    input_path = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    asyncio.run(run_pipeline(input_path))

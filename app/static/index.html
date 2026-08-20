@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinical Audio Assessment Pipeline</title>
+  <meta name="description" content="AI-powered clinical audio to structured assessment pipeline. Upload a WAV recording and extract structured clinical data instantly." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base:       #0a0f1e;
+      --bg-card:       #0f1629;
+      --bg-elevated:   #162040;
+      --bg-hover:      #1d2a52;
+      --accent:        #3b82f6;
+      --accent-glow:   rgba(59,130,246,0.25);
+      --accent-2:      #06b6d4;
+      --success:       #10b981;
+      --success-glow:  rgba(16,185,129,0.2);
+      --warning:       #f59e0b;
+      --error:         #ef4444;
+      --text-primary:  #f0f4ff;
+      --text-secondary:#8b9ec7;
+      --text-muted:    #4a5a80;
+      --border:        rgba(59,130,246,0.15);
+      --border-bright: rgba(59,130,246,0.4);
+      --radius-sm:     8px;
+      --radius-md:     12px;
+      --radius-lg:     20px;
+      --transition:    0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background ambient glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(59,130,246,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(6,182,212,0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 28px 40px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      background: rgba(10,15,30,0.6);
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .header-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #f0f4ff, #8bb4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+
+    .header-badge {
+      margin-left: auto;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: var(--success);
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-badge::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* ── Main Layout ── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Upload Section ── */
+    .upload-section {
+      margin-bottom: 36px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    #drop-zone {
+      border: 2px dashed var(--border-bright);
+      border-radius: var(--radius-lg);
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: rgba(59,130,246,0.03);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #drop-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(59,130,246,0.06), transparent);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.07);
+      box-shadow: 0 0 40px var(--accent-glow), inset 0 0 40px rgba(59,130,246,0.04);
+    }
+
+    #drop-zone:hover::before, #drop-zone.drag-over::before { opacity: 1; }
+
+    .drop-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(6,182,212,0.1));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      border: 1px solid rgba(59,130,246,0.2);
+      transition: var(--transition);
+    }
+
+    #drop-zone:hover .drop-icon {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px var(--accent-glow);
+    }
+
+    .drop-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .drop-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .drop-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--accent), #2563eb);
+      color: white;
+      border: none;
+      padding: 11px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+    }
+
+    .drop-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(59,130,246,0.45);
+    }
+
+    #file-input { display: none; }
+
+    /* ── File Selected State ── */
+    #file-info {
+      display: none;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-top: 16px;
+      animation: slide-in 0.3s ease;
+    }
+
+    .file-icon-wrap {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,182,212,0.15));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .file-details { flex: 1; }
+
+    .file-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    #remove-file {
+      background: transparent;
+      border: 1px solid rgba(239,68,68,0.3);
+      color: var(--error);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+    }
+
+    #remove-file:hover {
+      background: rgba(239,68,68,0.1);
+    }
+
+    /* ── Run Button ── */
+    #run-btn {
+      width: 100%;
+      padding: 16px;
+      margin-top: 16px;
+      background: linear-gradient(135deg, var(--accent), #1d4ed8);
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 24px rgba(59,130,246,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #run-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    #run-btn:hover::after { opacity: 1; }
+
+    #run-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 36px rgba(59,130,246,0.5);
+    }
+
+    #run-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Pipeline Progress ── */
+    #pipeline-section {
+      display: none;
+      margin-bottom: 36px;
+    }
+
+    .pipeline-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .pipeline-steps { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step-card.active {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.06);
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    .step-card.done {
+      border-color: rgba(16,185,129,0.35);
+      background: rgba(16,185,129,0.05);
+    }
+
+    .step-card.error {
+      border-color: rgba(239,68,68,0.35);
+      background: rgba(239,68,68,0.05);
+    }
+
+    .step-card.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      animation: progress-bar 1.5s ease-in-out infinite;
+    }
+
+    @keyframes progress-bar {
+      0%   { transform: scaleX(0); transform-origin: left; }
+      50%  { transform: scaleX(1); transform-origin: left; }
+      51%  { transform: scaleX(1); transform-origin: right; }
+      100% { transform: scaleX(0); transform-origin: right; }
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: var(--transition);
+      border: 1px solid var(--border);
+    }
+
+    .step-card.active .step-icon {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.4);
+      animation: spin-gentle 2s linear infinite;
+    }
+
+    .step-card.done .step-icon {
+      background: rgba(16,185,129,0.15);
+      border-color: rgba(16,185,129,0.35);
+    }
+
+    .step-card.error .step-icon {
+      background: rgba(239,68,68,0.15);
+      border-color: rgba(239,68,68,0.35);
+    }
+
+    @keyframes spin-gentle {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .step-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.3px;
+    }
+
+    .step-card.active .step-name { color: var(--accent); }
+    .step-card.done .step-name { color: var(--success); }
+    .step-card.error .step-name { color: var(--error); }
+
+    .step-status {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── Results Section ── */
+    #results-section {
+      display: none;
+      animation: fade-up 0.5s ease;
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .results-title {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f0f4ff, #8bb4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .results-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .meta-pill {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    /* ── Result Grid ── */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 700px) {
+      .result-grid { grid-template-columns: 1fr; }
+    }
+
+    .result-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      transition: var(--transition);
+    }
+
+    .result-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .result-card.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .card-count {
+      margin-left: auto;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 2px 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Clinical Details */
+    .detail-row {
+      margin-bottom: 14px;
+    }
+
+    .detail-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .detail-value {
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .duration-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.3);
+      color: var(--warning);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Assessment Items */
+    .assessment-item {
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid rgba(59,130,246,0.1);
+      transition: var(--transition);
+    }
+
+    .assessment-item:hover {
+      border-color: rgba(59,130,246,0.25);
+    }
+
+    .assessment-item:last-child { margin-bottom: 0; }
+
+    .assessment-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .assessment-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+
+    .assessment-conclusion {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Objective Tests Table */
+    .tests-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .tests-table th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tests-table td {
+      padding: 10px 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+      border-bottom: 1px solid rgba(59,130,246,0.06);
+      vertical-align: middle;
+    }
+
+    .tests-table tr:last-child td { border-bottom: none; }
+
+    .tests-table tr:hover td {
+      background: rgba(59,130,246,0.04);
+    }
+
+    .measure-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-2);
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.2);
+      border-radius: 6px;
+      padding: 3px 8px;
+      display: inline-block;
+    }
+
+    .bilateral-wrap {
+      display: flex;
+      gap: 6px;
+    }
+
+    .side-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .side-badge.left {
+      background: rgba(59,130,246,0.12);
+      border: 1px solid rgba(59,130,246,0.25);
+      color: #93c5fd;
+    }
+
+    .side-badge.right {
+      background: rgba(6,182,212,0.12);
+      border: 1px solid rgba(6,182,212,0.25);
+      color: #67e8f9;
+    }
+
+    /* Recommendation */
+    .rec-card {
+      background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(6,182,212,0.06));
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .rec-icon {
+      font-size: 20px;
+    }
+
+    .rec-type {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .rec-freq {
+      font-size: 12px;
+      color: var(--accent-2);
+      margin-top: 2px;
+    }
+
+    /* Patient Advice */
+    .advice-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      border-left: 3px solid var(--success);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* MongoDB Badge */
+    .mongo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--success);
+      font-weight: 500;
+      width: 100%;
+    }
+
+    .mongo-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    /* JSON Toggle */
+    .json-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+      width: 100%;
+      margin-top: 16px;
+      justify-content: center;
+    }
+
+    .json-toggle-btn:hover {
+      border-color: var(--border-bright);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    #json-block {
+      display: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-top: 12px;
+      overflow-x: auto;
+      animation: fade-up 0.3s ease;
+    }
+
+    #json-block pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: #c9d5f0;
+      white-space: pre;
+    }
+
+    /* Error Banner */
+    #error-banner {
+      display: none;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      color: #fca5a5;
+      font-size: 13px;
+      animation: fade-up 0.3s ease;
+    }
+
+    #error-banner strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--error);
+    }
+
+    /* Reset button */
+    #reset-btn {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid var(--border-bright);
+      color: var(--accent);
+      padding: 11px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 24px;
+    }
+
+    #reset-btn:hover {
+      background: rgba(59,130,246,0.08);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-icon">🩺</div>
+    <div class="header-text">
+      <h1>Clinical Audio Assessment Pipeline</h1>
+      <p>Whisper · LangGraph · FirstAssessment Schema · MongoDB</p>
+    </div>
+    <div class="header-badge" id="api-status">API Online</div>
+  </header>
+
+  <main>
+
+    <!-- Upload -->
+    <div class="upload-section">
+      <div class="section-label">Step 1 — Upload Clinical Audio</div>
+
+      <div id="drop-zone" role="button" aria-label="Audio upload area">
+        <div class="drop-icon">🎙️</div>
+        <div class="drop-title">Drop your WAV recording here</div>
+        <div class="drop-subtitle">Single combined clinical session audio (doctor + patient)</div>
+        <button class="drop-btn" id="browse-btn" type="button">📂 Browse Files</button>
+        <input type="file" id="file-input" accept=".wav,audio/wav" />
+      </div>
+
+      <div id="file-info">
+        <div class="file-icon-wrap">🎵</div>
+        <div class="file-details">
+          <div class="file-name" id="file-name-display">—</div>
+          <div class="file-meta" id="file-meta-display">—</div>
+        </div>
+        <button id="remove-file" type="button">✕ Remove</button>
+      </div>
+
+      <button id="run-btn" type="button">
+        <span id="run-btn-label">⚡ Run Clinical Extraction Pipeline</span>
+      </button>
+    </div>
+
+    <!-- Pipeline Steps -->
+    <div id="pipeline-section">
+      <div class="section-label">Step 2 — Processing Pipeline</div>
+      <div class="pipeline-steps">
+        <div class="step-card" id="step-validate">
+          <div class="step-icon" id="icon-validate">🔍</div>
+          <div class="step-name">WAV Validation</div>
+          <div class="step-status" id="status-validate">Waiting...</div>
+        </div>
+        <div class="step-card" id="step-transcribe">
+          <div class="step-icon" id="icon-transcribe">🎙️</div>
+          <div class="step-name">Whisper Transcription</div>
+          <div class="step-status" id="status-transcribe">Waiting...</div>
+        </div>
+        <div class="step-card" id="step-extract">
+          <div class="step-icon" id="icon-extract">🧠</div>
+          <div class="step-name">LangGraph Extraction</div>
+          <div class="step-status" id="status-extract">Waiting...</div>
+        </div>
+        <div class="step-card" id="step-save">
+          <div class="step-icon" id="icon-save">💾</div>
+          <div class="step-name">MongoDB Save</div>
+          <div class="step-status" id="status-save">Waiting...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="error-banner">
+      <strong>⚠️ Pipeline Error</strong>
+      <span id="error-detail">An error occurred during processing.</span>
+    </div>
+
+    <!-- Reset Button -->
+    <button id="reset-btn" type="button">↺ Process Another Recording</button>
+
+    <!-- Results -->
+    <div id="results-section">
+      <div class="results-header">
+        <div class="results-title">📋 Structured FirstAssessment</div>
+        <div class="results-meta">
+          <div class="meta-pill"><span class="dot"></span>Grounding Verified</div>
+          <div class="meta-pill" id="conf-pill">Confidence: —</div>
+        </div>
+      </div>
+
+      <div class="result-grid">
+        <!-- Clinical Details -->
+        <div class="result-card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(59,130,246,0.12);">📄</div>
+            <div class="card-title">Clinical Details</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Chief Complaint</div>
+            <div class="detail-value" id="r-complaint">—</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Clinical History</div>
+            <div class="detail-value" id="r-history">—</div>
+          </div>
+          <div class="detail-row" style="margin-bottom:0">
+            <div class="detail-label">Duration</div>
+            <div class="detail-value"><span class="duration-badge" id="r-duration">⏱ —</span></div>
+          </div>
+        </div>
+
+        <!-- Subjective Assessments -->
+        <div class="result-card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(245,158,11,0.12);">📝</div>
+            <div class="card-title">Subjective Assessments</div>
+            <span class="card-count" id="count-sa">0</span>
+          </div>
+          <div id="r-subjective-list"></div>
+        </div>
+
+        <!-- Objective Tests -->
+        <div class="result-card full-width">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(6,182,212,0.12);">📐</div>
+            <div class="card-title">Objective Measurements</div>
+            <span class="card-count" id="count-oa">0</span>
+          </div>
+          <div id="r-objective-wrap">
+            <div class="empty-state">No measurements recorded</div>
+          </div>
+        </div>
+
+        <!-- Recommendation -->
+        <div class="result-card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(16,185,129,0.12);">✅</div>
+            <div class="card-title">Recommendations</div>
+            <span class="card-count" id="count-rec">0</span>
+          </div>
+          <div id="r-rec-list"></div>
+        </div>
+
+        <!-- Patient Advice -->
+        <div class="result-card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(168,85,247,0.12);">💬</div>
+            <div class="card-title">Patient Advice</div>
+          </div>
+          <div id="r-advice-wrap">
+            <div class="empty-state">No specific advice recorded</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MongoDB Save Confirmation -->
+      <div class="mongo-badge" id="mongo-badge" style="display:none;">
+        ✅ Saved to MongoDB
+        <span class="mongo-id" id="mongo-id">—</span>
+      </div>
+
+      <!-- JSON Toggle -->
+      <button class="json-toggle-btn" id="json-toggle-btn" type="button">
+        { } View Raw JSON
+      </button>
+      <div id="json-block">
+        <pre id="json-pre"></pre>
+      </div>
+
+    </div><!-- /results-section -->
+  </main>
+
+  <script>
+    // ──────────────────────────────────────────────────
+    // State
+    // ──────────────────────────────────────────────────
+    let selectedFile = null;
+
+    // ──────────────────────────────────────────────────
+    // DOM refs
+    // ──────────────────────────────────────────────────
+    const dropZone      = document.getElementById('drop-zone');
+    const fileInput     = document.getElementById('file-input');
+    const browseBtn     = document.getElementById('browse-btn');
+    const fileInfo      = document.getElementById('file-info');
+    const fileNameDisp  = document.getElementById('file-name-display');
+    const fileMetaDisp  = document.getElementById('file-meta-display');
+    const removeFileBtn = document.getElementById('remove-file');
+    const runBtn        = document.getElementById('run-btn');
+    const runBtnLabel   = document.getElementById('run-btn-label');
+    const pipelineSec   = document.getElementById('pipeline-section');
+    const resultsSec    = document.getElementById('results-section');
+    const errorBanner   = document.getElementById('error-banner');
+    const errorDetail   = document.getElementById('error-detail');
+    const resetBtn      = document.getElementById('reset-btn');
+    const jsonToggleBtn = document.getElementById('json-toggle-btn');
+    const jsonBlock     = document.getElementById('json-block');
+    const jsonPre       = document.getElementById('json-pre');
+    const apiStatus     = document.getElementById('api-status');
+
+    // ──────────────────────────────────────────────────
+    // API health check
+    // ──────────────────────────────────────────────────
+    async function checkApiStatus() {
+      try {
+        const r = await fetch('/health');
+        if (r.ok) {
+          apiStatus.textContent = 'API Online';
+          apiStatus.style.color = '';
+        } else throw new Error();
+      } catch {
+        apiStatus.textContent = '⚠ API Offline';
+        apiStatus.style.background = 'rgba(239,68,68,0.1)';
+        apiStatus.style.borderColor = 'rgba(239,68,68,0.3)';
+        apiStatus.style.color = '#ef4444';
+      }
+    }
+    checkApiStatus();
+
+    // ──────────────────────────────────────────────────
+    // File Handling
+    // ──────────────────────────────────────────────────
+    browseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.toLowerCase().endsWith('.wav')) {
+        showError('Invalid file type. Please upload a .WAV audio file.');
+        return;
+      }
+      selectedFile = file;
+      const mb = (file.size / (1024 * 1024)).toFixed(2);
+      fileNameDisp.textContent = file.name;
+      fileMetaDisp.textContent = `${mb} MB · WAV Audio`;
+      fileInfo.style.display = 'flex';
+      runBtn.style.display = 'flex';
+      hideError();
+    }
+
+    removeFileBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      fileInfo.style.display = 'none';
+      runBtn.style.display = 'none';
+      hideError();
+    });
+
+    // ──────────────────────────────────────────────────
+    // Pipeline Steps UI
+    // ──────────────────────────────────────────────────
+    const STEPS = ['validate', 'transcribe', 'extract', 'save'];
+
+    function setStep(step, state, statusText) {
+      const card   = document.getElementById(`step-${step}`);
+      const status = document.getElementById(`status-${step}`);
+      card.className = `step-card ${state}`;
+      status.textContent = statusText;
+    }
+
+    function resetSteps() {
+      STEPS.forEach(s => setStep(s, '', 'Waiting...'));
+    }
+
+    // ──────────────────────────────────────────────────
+    // Run Pipeline
+    // ──────────────────────────────────────────────────
+    runBtn.addEventListener('click', runPipeline);
+
+    async function runPipeline() {
+      if (!selectedFile) return;
+
+      // Reset UI
+      hideError();
+      resultsSec.style.display = 'none';
+      resetBtn.style.display = 'none';
+      resetSteps();
+      pipelineSec.style.display = 'block';
+      runBtn.disabled = true;
+      runBtnLabel.textContent = '⏳ Processing...';
+      jsonBlock.style.display = 'none';
+
+      // Step 1: Validate (client-side indicator, server validates too)
+      setStep('validate', 'active', 'Checking WAV...');
+
+      try {
+        // Step 2: Transcription + Extraction (single API call to /assessments/parse)
+        setStep('transcribe', 'active', 'Transcribing...');
+        setStep('validate', 'done', '✓ Validated');
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const parseResp = await fetch('/assessments/parse', {
+          method: 'POST',
+          body: formData,
+        });
+
+        setStep('transcribe', 'done', '✓ Transcribed');
+        setStep('extract', 'active', 'Extracting...');
+
+        if (!parseResp.ok) {
+          const errJson = await parseResp.json().catch(() => ({}));
+          throw new Error(errJson.detail || `Server error ${parseResp.status}`);
+        }
+
+        const assessment = await parseResp.json();
+        setStep('extract', 'done', '✓ Extracted');
+
+        // Step 4: Save to MongoDB
+        setStep('save', 'active', 'Saving...');
+        const saveResp = await fetch('/assessments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(assessment),
+        });
+
+        let savedId = null;
+        if (saveResp.ok) {
+          const saveData = await saveResp.json();
+          savedId = saveData.id;
+          setStep('save', 'done', '✓ Saved');
+        } else {
+          setStep('save', 'error', '⚠ Save failed');
+        }
+
+        // Render results
+        renderResults(assessment, savedId);
+
+      } catch (err) {
+        STEPS.forEach(s => {
+          const card = document.getElementById(`step-${s}`);
+          if (card.classList.contains('active')) {
+            setStep(s, 'error', '✗ Failed');
+          }
+        });
+        showError(err.message || 'An unexpected error occurred.');
+        resetBtn.style.display = 'flex';
+      } finally {
+        runBtn.disabled = false;
+        runBtnLabel.textContent = '⚡ Run Clinical Extraction Pipeline';
+      }
+    }
+
+    // ──────────────────────────────────────────────────
+    // Render Results
+    // ──────────────────────────────────────────────────
+    function renderResults(a, savedId) {
+      const cd = a.clinicalDetails || {};
+
+      // Clinical Details
+      document.getElementById('r-complaint').textContent = cd.chiefComplaint || '—';
+      document.getElementById('r-history').textContent   = cd.clinicalHistory || '—';
+      const durationEl = document.getElementById('r-duration');
+      durationEl.textContent = `⏱ ${cd.duration || '—'}`;
+
+      // Confidence pill
+      document.getElementById('conf-pill').textContent = 'Confidence: 100%';
+
+      // Subjective Assessments
+      const saList = a.subjectiveAssessments || [];
+      const saWrap = document.getElementById('r-subjective-list');
+      document.getElementById('count-sa').textContent = saList.length;
+      if (saList.length === 0) {
+        saWrap.innerHTML = '<div class="empty-state">No subjective assessments recorded</div>';
+      } else {
+        saWrap.innerHTML = saList.map(s => `
+          <div class="assessment-item">
+            <div class="assessment-dot"></div>
+            <div>
+              <div class="assessment-name">${esc(s.testName)}</div>
+              <div class="assessment-conclusion">${esc(s.conclusion)}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Objective Tests
+      const tests = (a.objectiveAssessment || {}).tests || [];
+      const oaWrap = document.getElementById('r-objective-wrap');
+      document.getElementById('count-oa').textContent = tests.length;
+      if (tests.length === 0) {
+        oaWrap.innerHTML = '<div class="empty-state">No objective measurements recorded</div>';
+      } else {
+        oaWrap.innerHTML = `
+          <table class="tests-table">
+            <thead>
+              <tr>
+                <th>Test / Measurement</th>
+                <th>Value</th>
+                <th>Left</th>
+                <th>Right</th>
+                <th>Unit</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tests.map(t => `
+                <tr>
+                  <td><strong>${esc(t.testName)}</strong></td>
+                  <td>${t.value ? `<span class="measure-badge">${esc(t.value)}</span>` : '—'}</td>
+                  <td>${t.left  ? `<span class="side-badge left">L: ${esc(t.left)}</span>`  : '—'}</td>
+                  <td>${t.right ? `<span class="side-badge right">R: ${esc(t.right)}</span>` : '—'}</td>
+                  <td style="color:var(--text-muted);font-size:12px">${esc(t.unitName)}</td>
+                  <td style="color:var(--text-muted);font-size:12px">${esc(t.comments)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      // Recommendations
+      const recList = a.recommendation || [];
+      const recWrap = document.getElementById('r-rec-list');
+      document.getElementById('count-rec').textContent = recList.length;
+      if (recList.length === 0) {
+        recWrap.innerHTML = '<div class="empty-state">No recommendations recorded</div>';
+      } else {
+        recWrap.innerHTML = recList.map(r => `
+          <div class="rec-card">
+            <div class="rec-icon">🏥</div>
+            <div>
+              <div class="rec-type">${esc(r.sessionType)}</div>
+              <div class="rec-freq">${esc(r.sessionFrequency) || 'Frequency not specified'}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Patient Advice
+      const advice = (a.patientAdvice || {}).adviceDetails || '';
+      const advWrap = document.getElementById('r-advice-wrap');
+      if (advice) {
+        advWrap.innerHTML = `<div class="advice-text">${esc(advice)}</div>`;
+      } else {
+        advWrap.innerHTML = '<div class="empty-state">No specific advice recorded</div>';
+      }
+
+      // MongoDB badge
+      const mongoBadge = document.getElementById('mongo-badge');
+      if (savedId) {
+        mongoBadge.style.display = 'flex';
+        document.getElementById('mongo-id').textContent = `ID: ${savedId}`;
+      } else {
+        mongoBadge.style.display = 'none';
+      }
+
+      // Raw JSON
+      jsonPre.textContent = JSON.stringify(a, null, 2);
+
+      // Show section
+      resultsSec.style.display = 'block';
+      resetBtn.style.display = 'flex';
+      resultsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ──────────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────────
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function showError(msg) {
+      errorBanner.style.display = 'block';
+      errorDetail.textContent = msg;
+    }
+
+    function hideError() {
+      errorBanner.style.display = 'none';
+    }
+
+    // JSON toggle
+    jsonToggleBtn.addEventListener('click', () => {
+      const visible = jsonBlock.style.display === 'block';
+      jsonBlock.style.display = visible ? 'none' : 'block';
+      jsonToggleBtn.textContent = visible ? '{ } View Raw JSON' : '{ } Hide Raw JSON';
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      fileInfo.style.display = 'none';
+      runBtn.style.display = 'none';
+      pipelineSec.style.display = 'none';
+      resultsSec.style.display = 'none';
+      resetBtn.style.display = 'none';
+      jsonBlock.style.display = 'none';
+      hideError();
+      resetSteps();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>
