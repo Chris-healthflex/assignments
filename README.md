@@ -170,6 +170,10 @@ Real output from `data/clinical_assessment.wav` (left knee post-ORIF physiothera
 
 Interactive Swagger docs: **`http://localhost:8000/docs`**
 
+### Swagger API Documentation Preview
+
+![Swagger API Documentation](docs/assets/swagger_docs.jpg)
+
 ---
 
 ## Project Structure
@@ -203,6 +207,7 @@ Interactive Swagger docs: **`http://localhost:8000/docs`**
 ├── data/
 │   └── clinical_assessment.wav            # Sample clinical audio recording
 ├── docs/
+│   ├── swagger_docs.jpg                  # Swagger API documentation screenshot
 │   └── ui_screenshot.jpg                  # UI preview screenshot
 ├── scripts/
 │   └── test_pipeline.py                   # CLI end-to-end test runner
