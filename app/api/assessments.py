@@ -18,10 +18,14 @@ router = APIRouter(prefix="/assessments", tags=["assessments"])
 def _parse_transcript(transcript: str) -> FirstAssessment:
     settings = get_settings()
     state = ClinicalExtractionGraph(settings.extraction_model, settings.groq_api_key).extract(transcript)
-    issues = low_confidence_fields(state.get("confidence", {}), settings.confidence_threshold)
+    assessment, grounding_issues = map_and_validate(state["assessment"], transcript)
+    confidence = dict(state.get("confidence", {}))
+    for issue in grounding_issues:
+        confidence[issue["field"]] = 0.0
+    issues = low_confidence_fields(confidence, settings.confidence_threshold)
     if issues:
         raise HTTPException(status_code=422, detail={"message": "Extraction confidence is too low", "fields": issues})
-    return map_and_validate(state["assessment"])
+    return assessment
 
 
 @router.post("/parse", response_model=FirstAssessment)
@@ -44,7 +48,8 @@ async def parse_assessment(file: UploadFile = File(...)) -> FirstAssessment:
 
 @router.post("", response_model=AssessmentRecord, status_code=status.HTTP_201_CREATED)
 def create_assessment(assessment: FirstAssessment) -> AssessmentRecord:
-    return save_assessment(map_and_validate(assessment))
+    validated, _ = map_and_validate(assessment)
+    return save_assessment(validated)
 
 
 @router.get("/{assessment_id}", response_model=AssessmentRecord)

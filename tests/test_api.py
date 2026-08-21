@@ -47,6 +47,26 @@ def test_parse_returns_422_for_forced_low_confidence(monkeypatch) -> None:
     assert response.json()["detail"]["fields"][0]["field"] == "clinicalDetails.chiefComplaint"
 
 
+def test_parse_rejects_grounding_failure_even_with_high_model_confidence(monkeypatch) -> None:
+    class GroundingFailureGraph:
+        def __init__(self, model_name, api_key):
+            pass
+
+        def extract(self, transcript):
+            assessment = FirstAssessment()
+            assessment.clinicalDetails.duration = "140 years"
+            return {
+                "assessment": assessment,
+                "confidence": {"clinicalDetails.duration": 0.99},
+            }
+
+    monkeypatch.setattr(assessment_routes.WhisperTranscriber, "transcribe", lambda self, path: "The patient has knee pain.")
+    monkeypatch.setattr(assessment_routes, "ClinicalExtractionGraph", GroundingFailureGraph)
+    response = client.post("/assessments/parse", files={"file": ("session.wav", b"RIFF audio", "audio/wav")})
+    assert response.status_code == 422
+    assert response.json()["detail"]["fields"][0]["field"] == "clinicalDetails.duration"
+
+
 def test_create_success_with_database_mocked(monkeypatch) -> None:
     expected = Mock(id="abc", created_at=datetime(2026, 8, 21), **sample_assessment())
     monkeypatch.setattr(assessment_routes, "save_assessment", lambda assessment: expected)

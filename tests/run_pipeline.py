@@ -38,13 +38,15 @@ def main() -> None:
     print(json.dumps(confidence, indent=2))
     print()
 
+    assessment, grounding_issues = map_and_validate(state["assessment"], transcript)
+    for issue in grounding_issues:
+        confidence[issue["field"]] = 0.0
     issues = low_confidence_fields(confidence, CONFIDENCE_THRESHOLD)
     if issues:
         print("Low-confidence fields detected:")
         print(json.dumps(issues, indent=2))
         return
 
-    assessment = map_and_validate(state["assessment"])
     print("FirstAssessment JSON:")
     print(json.dumps(assessment.model_dump(), indent=2))
 

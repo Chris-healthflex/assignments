@@ -55,10 +55,12 @@ The parser endpoint and persistence endpoint are deliberately separate. `POST /a
                                   |
                                   v
                      LangGraph + Groq extraction
-                                  |
-                                  v
-                FirstAssessment + field confidence
-                                  |
+                            |
+                            v
+                   FirstAssessment extraction
+                            |
+                            v
+                   Deterministic transcript grounding
                   +----------------+----------------+
                   |                                 |
          confidence below 0.75              confidence accepted
@@ -385,8 +387,8 @@ python -m pytest -v
 The tests are designed to pass without a live Groq API, Whisper model download, or MongoDB connection:
 
 * `test_schema.py`: verifies exact top-level and nested schema keys, array types, string defaults, and rejection of unknown fields.
-* `test_no_hallucination.py`: verifies that the schema/mapping layer never adds, infers, or pads values on top of what the model returned — dates, measurements, goals, and diagnoses that were never populated stay empty. This mocks the model call directly (returning a hand-authored `ExtractionOutput` per case), so it verifies the mapping boundary, not the live model's own judgment. See the module docstring in `test_no_hallucination.py` for what this does and does not cover.
-* `test_date_filter_boundary.py`: regression test for a real bug found during manual testing — a record saved mid-day was excluded by a `to_date` filter for that same calendar day. Runs against `mongomock` end-to-end (not mocked at the query-function level) so it exercises the actual date-boundary logic.
+* `test_no_hallucination.py`: verifies that the schema/mapping layer never adds, infers, or pads values on top of what the model returned — dates, measurements, goals, and diagnoses that were never populated stay empty. This mocks the model call directly, so it verifies the mapping boundary rather than the live model's own judgment.
+* `test_grounding.py`: verifies deterministic numeric, date, unit, and meaningful-word grounding, plus clearing unsupported nested values while preserving the schema shape.
 * `test_pipeline.py`: verifies WAV validation and confidence filtering.
 * `test_multi_array_regression.py`: verifies preservation of five goals and five tests.
 * `test_api.py`: verifies success and failure behavior for all four endpoints and tests MongoDB persistence with `mongomock`.
@@ -401,11 +403,11 @@ Pydantic v2 models are the final output boundary. Models use `extra="forbid"`, s
 
 ### No hallucination policy
 
-The extraction prompt explicitly instructs the model to use empty strings or arrays when the transcript does not provide a value, and to record an item (a goal, test, or recommendation) as soon as its name or content is stated even if some of its fields are unmentioned, rather than omitting the whole item. It must not invent clinical measurements, scores, dates, diagnoses, or recommendations. Automated tests verify the schema/mapping layer passes model output through without padding it (see Testing above); the live model's actual extraction behavior was verified manually against the real WAV, where no fabricated values were observed and a section the transcript never mentioned (`patientAdvice`) was correctly left empty across multiple runs.
+The extraction prompt explicitly instructs the model to use empty strings or arrays when the transcript does not provide a value, and to record an item (a goal, test, or recommendation) as soon as its name or content is stated even if some of its fields are unmentioned, rather than omitting the whole item. After extraction, deterministic Python grounding walks every non-empty string leaf in `FirstAssessment`: numbers and dates must occur in the transcript after normalization, units such as `deg` and `degrees` are normalized, and meaningful text must have sufficient token overlap. Unsupported values are cleared to `""`, assigned confidence `0.0`, and returned through the field-level HTTP 422 gate. The live model's actual extraction behavior was also verified manually against the real WAV.
 
 ### Confidence gate
 
-The extraction output includes a confidence map keyed by field or dotted field path, produced by the model in the same structured-output call as the assessment itself (via an `ExtractionOutput` wrapper), rather than as a separate pass. The configured threshold is `0.75`. Any reported field below the threshold causes HTTP 422 with the field name, score, and reason so a caller can send the assessment for human review instead of silently accepting uncertain data. This confidence is self-reported by the LLM and should not be treated as a substitute for independent verification; combining it with a deterministic evidence check (confirming extracted values actually appear in the transcript) is a natural next improvement beyond this assignment's scope.
+The extraction output includes a confidence map keyed by field or dotted field path, produced by the model in the same structured-output call as the assessment itself. The configured threshold is `0.75`. Any reported field below the threshold, including a value forced to `0.0` by grounding, causes HTTP 422 with the field name, score, and reason. The model's confidence is self-reported, so deterministic grounding is the hard evidence gate.
 
 ### Known limitation: field-mapping consistency
 
@@ -426,10 +428,6 @@ Uploaded audio is written to a temporary file for Whisper and deleted in a `fina
 ### Persistence model
 
 The validated assessment payload is stored as-is. MongoDB metadata is kept outside the `FirstAssessment` schema: `_id` is converted to the response field `id`, and `created_at` is returned only by persistence endpoints.
-
-### Date filtering is inclusive of the full day
-
-`GET /assessments` treats a bare `to_date` (no time component) as covering the entire day rather than as midnight. This was a real bug found during manual testing against Atlas: a record saved mid-afternoon was excluded by a same-day `to_date` filter until this was fixed. See `test_date_filter_boundary.py`.
 
 ### No frontend
 
@@ -464,5 +462,4 @@ Not included:
 * Background job processing or a queue.
 * Deployment infrastructure.
 * Persisting raw audio files.
-* A production-confirmed schema fixture (see "Schema provenance and a known caveat" above).
-* Deterministic evidence-grounding of extracted values against the transcript beyond the model's own self-reported confidence.
+* Word-level Whisper confidence analysis for semantic transcription errors. Grounding catches values invented by the LLM, but cannot prove that Whisper transcribed the audio correctly.
