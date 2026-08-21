@@ -11,7 +11,9 @@ python -m pip install -e ".[test]"
 Copy-Item .env.example .env
 ```
 
-Set `OPENAI_API_KEY` in `.env` for the LangGraph extraction model. Set `MONGODB_URI` if MongoDB is not running at the default local URI. Whisper downloads the configured local model on first use and may require `ffmpeg` on the host.
+Set `GROQ_API_KEY` in `.env` for the LangGraph extraction model. The implementation originally targeted OpenAI `gpt-4o-mini`, but that path was blocked by quota. It migrated to Groq `openai/gpt-oss-120b` after Groq deprecated `llama-3.3-70b-versatile` in August 2026. Set `MONGODB_URI` if MongoDB is not running at the default local URI.
+
+Whisper runs locally with the `base` model by default. This keeps audio processing independent of a second hosted transcription API and is a reasonable speed/accuracy choice for the assignment. The model downloads on first use and may require `ffmpeg` on the host.
 
 ## Run
 
@@ -26,6 +28,8 @@ Run the supplied WAV through the complete pipeline and print the JSON:
 ```powershell
 python tests/run_pipeline.py clinical_assessment.wav
 ```
+
+The interactive API documentation is available at `http://127.0.0.1:8000/docs` after the server starts. For local MongoDB, run `docker run -d -p 27017:27017 --name clinical-mongo mongo:7`.
 
 ## Endpoints
 
@@ -42,7 +46,7 @@ Extraction below `CONFIDENCE_THRESHOLD` returns HTTP 422 with field-level detail
 pytest
 ```
 
-The tests cover strict schema keys, array defaults, confidence rejection, and WAV input validation. Endpoint and MongoDB integration tests require the optional runtime dependencies and a test database.
+The tests use mocked Whisper, Groq/LangGraph, and `mongomock`, so they do not require a live model API, audio model download, or MongoDB connection. They cover strict schema keys, hallucination guards, confidence rejection, five-item array preservation, all endpoint success/failure paths, date filtering errors, and persistence.
 
 ## Design Decisions
 
@@ -50,4 +54,5 @@ The tests cover strict schema keys, array defaults, confidence rejection, and WA
 - Whisper and LangGraph are lazy-loaded at execution time, keeping API import and schema tests independent of model downloads.
 - Uploaded audio is written to a temporary file and removed after parsing.
 - MongoDB stores the validated assessment payload plus internal `created_at` and `_id` metadata; API records expose the identifier as `id`.
-- The nested fields implemented here are the fields explicitly listed in the assignment brief. If the repository supplies a fuller production `FirstAssessment` contract, update only `app/models/first_assessment.py` and its schema tests to that authoritative definition.
+- The confidence threshold is `0.75`. It is applied to self-reported, per-field confidence scores returned by the extraction model; fields below that score are returned as HTTP 422 for human review.
+- The Pydantic model matches the supplied production schema image: all seven sections, nested key names, array shapes, and non-null string leaf fields are represented exactly. No frontend, static assets, HTML, or unrelated clinical features are included.

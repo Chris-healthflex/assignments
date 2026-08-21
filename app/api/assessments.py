@@ -56,5 +56,10 @@ def retrieve_assessment(assessment_id: str) -> AssessmentRecord:
 
 
 @router.get("", response_model=list[AssessmentRecord])
-def retrieve_assessments(from_date: datetime | None = None, to_date: datetime | None = None) -> list[AssessmentRecord]:
-    return list_assessments(from_date, to_date)
+def retrieve_assessments(from_date: str | None = None, to_date: str | None = None) -> list[AssessmentRecord]:
+    try:
+        parsed_from = datetime.fromisoformat(from_date) if from_date else None
+        parsed_to = datetime.fromisoformat(to_date) if to_date else None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Dates must be valid ISO-8601 values") from exc
+    return list_assessments(parsed_from, parsed_to)
