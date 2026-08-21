@@ -97,12 +97,35 @@ def test_parse_rejects_non_wav_file(app_client):
     assert response.status_code == 400
 
 
-def test_parse_returns_422_when_low_confidence(app_client):
+def test_parse_returns_200_when_a_few_sections_are_low_confidence(app_client):
     app, client = app_client
     app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
         ExtractionResult(
             assessment=FirstAssessment(),
             low_confidence_sections=["subjectiveGoals", "objectiveGoals"],
+        )
+    )
+
+    response = client.post(
+        "/assessments/parse",
+        files={"file": ("session.wav", io.BytesIO(b"RIFF....WAVEfmt "), "audio/wav")},
+    )
+
+    assert response.status_code == 200
+
+
+def test_parse_returns_422_when_broadly_low_confidence(app_client):
+    app, client = app_client
+    app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
+        ExtractionResult(
+            assessment=FirstAssessment(),
+            low_confidence_sections=[
+                "subjectiveAssessments",
+                "subjectiveGoals",
+                "objectiveGoals",
+                "recommendation",
+                "patientAdvice",
+            ],
         )
     )
 

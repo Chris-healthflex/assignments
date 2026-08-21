@@ -55,7 +55,7 @@ class StructuredLLM(Protocol):
 def _default_llm(api_key: str | None = None) -> StructuredLLM:
     from langchain_groq import ChatGroq
 
-    kwargs = {"model": "llama-3.3-70b-versatile", "temperature": 0}
+    kwargs = {"model": "openai/gpt-oss-120b", "temperature": 0}
     if api_key:
         kwargs["api_key"] = api_key
 

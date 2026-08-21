@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import certifi
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,7 +15,14 @@ from app.db.mongo import get_repository as build_repository
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    client = AsyncIOMotorClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
+    client_kwargs = {"serverSelectionTimeoutMS": 5000}
+    if settings.mongo_uri.startswith("mongodb+srv://"):
+        # Atlas requires TLS; some Python installs (notably python.org's
+        # macOS build) ship without access to the system CA store, which
+        # otherwise fails with CERTIFICATE_VERIFY_FAILED.
+        client_kwargs["tlsCAFile"] = certifi.where()
+
+    client = AsyncIOMotorClient(settings.mongo_uri, **client_kwargs)
     repository = build_repository(client, settings.mongo_db_name)
 
     app.dependency_overrides[get_repository] = lambda: repository

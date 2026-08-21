@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db_name: str = "stance_health"
-    confidence_flag_threshold: int = 2
+    confidence_flag_threshold: int = 5
 
 
 @lru_cache

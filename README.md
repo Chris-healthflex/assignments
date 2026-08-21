@@ -8,7 +8,7 @@ consumes.
 
 - **FastAPI** — HTTP API
 - **Groq Whisper API** (`whisper-large-v3`) — audio transcription
-- **Groq Llama 3.3 70B via LangGraph** — two-node extraction pipeline
+- **Groq `openai/gpt-oss-120b` via LangGraph** — two-node extraction pipeline
   (extract → check confidence)
 - **Pydantic v2** — strict `FirstAssessment` schema
 - **MongoDB (Motor, async)** — persistence
@@ -21,9 +21,10 @@ consumes.
   "LangChain/LangGraph" for extraction. Groq serves the same open-source
   Whisper model (`whisper-large-v3`) over an OpenAI-compatible API, so
   transcription quality is unchanged — the substitution is the inference
-  provider, not the model family. For extraction, Groq hosts Llama 3.3 70B
-  with tool-calling, which `ChatGroq(...).with_structured_output(...)` uses
-  the same way `ChatOpenAI` would. The swap was made because a Groq key was
+  provider, not the model family. For extraction, Groq hosts
+  `openai/gpt-oss-120b` with tool-calling, which
+  `ChatGroq(...).with_structured_output(...)` uses the same way `ChatOpenAI`
+  would. The swap was made because a Groq key was
   available and OpenAI's wasn't; both `transcription.py` and
   `extraction_graph.py` isolate the provider behind a small interface
   (`Groq` client / `StructuredLLM` protocol), so switching back to OpenAI is
