@@ -7,6 +7,8 @@ import type {
   SubjectiveAssessment,
   SubjectiveGoal,
 } from "../types";
+import { Badge } from "./ui/Badge";
+import { Card } from "./ui/Card";
 
 interface Props {
   assessment: FirstAssessment;
@@ -25,23 +27,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={`rounded-xl border bg-white p-5 shadow-sm ${
-        flagged ? "border-amber-300 bg-amber-50/40" : "border-slate-200"
-      }`}
-    >
+    <Card tone={flagged ? "flagged" : "default"} className="p-5">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-teal-700">
           {title}
         </h3>
-        {flagged && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-            Not stated in the recording
-          </span>
-        )}
+        {flagged && <Badge tone="amber">Not stated in the recording</Badge>}
       </div>
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -62,8 +56,8 @@ function TextField({
     const inputClass =
       "mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-800 focus:border-teal-500 focus:outline-none";
     return (
-      <div>
-        <label className="text-xs font-medium text-slate-500">{label}</label>
+      <label className="block">
+        <span className="text-xs font-medium text-slate-500">{label}</span>
         {multiline ? (
           <textarea
             className={inputClass}
@@ -78,7 +72,7 @@ function TextField({
             onChange={(e) => onChange(e.target.value)}
           />
         )}
-      </div>
+      </label>
     );
   }
 

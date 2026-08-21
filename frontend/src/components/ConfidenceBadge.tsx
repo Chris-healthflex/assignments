@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Card } from "./ui/Card";
 
 export function ConfidenceBadge({
   confidence,
@@ -15,7 +16,7 @@ export function ConfidenceBadge({
     pct >= 85 ? "bg-teal-600" : pct >= 60 ? "bg-amber-500" : "bg-red-500";
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <Card className="p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -51,6 +52,6 @@ export function ConfidenceBadge({
           extract.
         </p>
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,65 +1,61 @@
-import { useRef, useState } from "react";
-import { ApiError, parseAssessment, saveAssessment } from "../api";
-import type { FirstAssessment, ParseDebugResult } from "../types";
-import { AssessmentView } from "./AssessmentView";
-import { ConfidenceBadge } from "./ConfidenceBadge";
+import { useEffect, useRef, useState } from "react";
+import { useParseAssessment } from "../hooks/useParseAssessment";
+import { useSaveAssessment } from "../hooks/useSaveAssessment";
+import type { FirstAssessment } from "../types";
+import { AssessmentView } from "../components/AssessmentView";
+import { ConfidenceBadge } from "../components/ConfidenceBadge";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { useToast } from "../components/ui/Toast";
 
-type Status = "idle" | "parsing" | "parsed" | "saving" | "saved" | "error";
-
-export function UploadPanel() {
-  const [status, setStatus] = useState<Status>("idle");
-  const [fileName, setFileName] = useState<string>("");
-  const [parseResult, setParseResult] = useState<ParseDebugResult | null>(null);
+export function UploadPage() {
+  const { status: parseStatus, result: parseResult, error: parseError, parse, reset: resetParse } =
+    useParseAssessment();
+  const { status: saveStatus, savedId, save, reset: resetSave } = useSaveAssessment();
   const [assessment, setAssessment] = useState<FirstAssessment | null>(null);
-  const [error, setError] = useState<string>("");
+  const [fileName, setFileName] = useState<string>("");
   const [showTranscript, setShowTranscript] = useState(false);
-  const [savedId, setSavedId] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const isSavingRef = useRef(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (parseResult) setAssessment(parseResult.assessment);
+  }, [parseResult]);
+
+  const hasUnsavedWork = parseResult !== null && saveStatus !== "saved";
+
+  useEffect(() => {
+    if (!hasUnsavedWork) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedWork]);
 
   async function handleFile(file: File) {
     setFileName(file.name);
-    setStatus("parsing");
-    setError("");
-    setParseResult(null);
-    setAssessment(null);
-    setSavedId("");
-    isSavingRef.current = false;
-
-    try {
-      const result = await parseAssessment(file);
-      setParseResult(result);
-      setAssessment(result.assessment);
-      setStatus("parsed");
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(typeof err.detail === "string" ? err.detail : "Failed to parse audio");
-      } else {
-        setError("Could not reach the API. Is the FastAPI server running?");
-      }
-      setStatus("error");
-    }
+    resetSave();
+    setShowTranscript(false);
+    await parse(file);
   }
 
   async function handleSave() {
-    if (!assessment || isSavingRef.current) return;
-    isSavingRef.current = true;
-    setStatus("saving");
-    try {
-      const { id } = await saveAssessment(assessment);
-      setSavedId(id);
-      setStatus("saved");
-    } catch {
-      isSavingRef.current = false;
-      setError("Failed to save assessment");
-      setStatus("error");
-    }
+    if (!assessment) return;
+    await save(assessment);
   }
+
+  useEffect(() => {
+    if (saveStatus === "saved") toast.show("Assessment saved to MongoDB");
+    if (saveStatus === "error") toast.show("Failed to save assessment", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveStatus]);
 
   return (
     <div className="space-y-6">
-      {status === "idle" && (
+      {parseStatus === "idle" && (
         <div>
           <h2 className="text-2xl font-semibold text-slate-900">
             Turn a session recording into a structured assessment
@@ -96,12 +92,7 @@ export function UploadPanel() {
           Drop a clinical session WAV file here
         </p>
         <p className="mb-4 text-xs text-slate-500">or</p>
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-teal-700"
-        >
-          Choose file
-        </button>
+        <Button onClick={() => inputRef.current?.click()}>Choose file</Button>
         <input
           ref={inputRef}
           type="file"
@@ -119,17 +110,22 @@ export function UploadPanel() {
         )}
       </div>
 
-      {status === "idle" && <HowItWorks />}
+      {parseStatus === "idle" && <HowItWorks />}
 
-      {status === "parsing" && (
-        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-5">
+      {parseStatus === "parsing" && (
+        <Card className="p-5">
           <ProcessingSteps />
-        </div>
+        </Card>
       )}
 
-      {status === "error" && (
+      {parseStatus === "error" && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-medium">{error || "Something went wrong"}</p>
+          <div className="flex items-start justify-between gap-4">
+            <p className="font-medium">{parseError || "Something went wrong"}</p>
+            <Button variant="ghost" onClick={resetParse} className="shrink-0">
+              Dismiss
+            </Button>
+          </div>
         </div>
       )}
 
@@ -137,18 +133,19 @@ export function UploadPanel() {
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-semibold text-slate-900">Extracted Assessment</h2>
-            {status === "saved" ? (
-              <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-medium text-teal-800">
+            {saveStatus === "saved" ? (
+              <Badge tone="teal" className="shrink-0">
                 Saved · id {savedId}
-              </span>
+              </Badge>
             ) : (
-              <button
+              <Button
+                variant="dark"
                 onClick={handleSave}
-                disabled={status === "saving"}
-                className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700 disabled:opacity-50"
+                disabled={saveStatus === "saving"}
+                className="shrink-0"
               >
-                {status === "saving" ? "Saving…" : "Save to MongoDB"}
-              </button>
+                {saveStatus === "saving" ? "Saving…" : "Save to MongoDB"}
+              </Button>
             )}
           </div>
 
@@ -157,12 +154,13 @@ export function UploadPanel() {
               confidence={parseResult.confidence}
               flaggedCount={parseResult.low_confidence_sections.length}
             />
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setShowTranscript((v) => !v)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-teal-300 sm:self-start"
+              className="sm:self-start"
             >
               {showTranscript ? "Hide transcript" : "Show transcript"}
-            </button>
+            </Button>
           </div>
 
           {showTranscript && (

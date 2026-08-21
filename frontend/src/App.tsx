@@ -1,12 +1,6 @@
-import { useState } from "react";
-import { UploadPanel } from "./components/UploadPanel";
-import { HistoryList } from "./components/HistoryList";
-
-type Tab = "upload" | "history";
+import { NavLink, Outlet } from "react-router-dom";
 
 function App() {
-  const [tab, setTab] = useState<Tab>("upload");
-
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
@@ -22,24 +16,36 @@ function App() {
 
       <nav className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-4xl gap-6 px-6">
-          {(["upload", "history"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`border-b-2 py-3 text-sm font-medium capitalize transition ${
-                tab === t
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `border-b-2 py-3 text-sm font-medium transition ${
+                isActive
                   ? "border-teal-600 text-teal-700"
                   : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {t === "upload" ? "New Assessment" : "Saved Assessments"}
-            </button>
-          ))}
+              }`
+            }
+          >
+            New Assessment
+          </NavLink>
+          <NavLink
+            to="/history"
+            className={({ isActive }) =>
+              `border-b-2 py-3 text-sm font-medium transition ${
+                isActive
+                  ? "border-teal-600 text-teal-700"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`
+            }
+          >
+            Saved Assessments
+          </NavLink>
         </div>
       </nav>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
-        {tab === "upload" ? <UploadPanel /> : <HistoryList />}
+        <Outlet />
       </main>
     </div>
   );

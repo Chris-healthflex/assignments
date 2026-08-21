@@ -82,7 +82,12 @@ uvicorn app.main:app --reload
 ```
 
 - `POST /assessments/parse` — multipart WAV upload → `FirstAssessment` JSON
-  (or `422` with `low_confidence_sections` if extraction confidence is low)
+  (or `422` with `low_confidence_sections` if extraction confidence is low).
+  Add `?include_debug=true` (used only by the demo frontend below) to get
+  `{assessment, transcript, confidence, is_low_confidence,
+  low_confidence_sections}` instead, and to skip the 422 so a human can
+  review and complete flagged sections rather than being blocked outright.
+  The graded/default response shape is unchanged either way.
 - `POST /assessments` — save a `FirstAssessment` JSON body → `{"id": ...}`
 - `GET /assessments/{id}` — fetch a saved assessment
 - `GET /assessments?date_from=...&date_to=...` — list, optionally filtered by
@@ -107,6 +112,56 @@ Two views: **New Assessment** (drop/pick a WAV → see the transcribed +
 extracted `FirstAssessment`, sectioned and readable → save it) and
 **Saved Assessments** (browse everything previously saved via `GET
 /assessments`).
+
+### Frontend architecture
+
+```
+frontend/src/
+  main.tsx                  React Router setup, ErrorBoundary, ToastProvider
+  App.tsx                   layout shell (header/nav) + <Outlet/>
+  pages/
+    UploadPage.tsx           "/"           — upload, review, save
+    HistoryPage.tsx          "/history"    — saved assessments list
+    AssessmentDetailPage.tsx "/history/:id"— saved assessment detail
+  hooks/
+    useParseAssessment.ts    parse mutation: status/result/error
+    useSaveAssessment.ts     save mutation: status/savedId, double-submit-safe
+    useAssessments.ts        list query: data/loading/error/refetch
+    useAssessment.ts         by-id query: data/loading/error
+  schemas.ts                 Zod schemas mirroring the FirstAssessment
+                              Pydantic models — single source of truth for
+                              src/types.ts (derived via z.infer)
+  api.ts                     fetch wrappers; every response is validated
+                              against schemas.ts before the caller sees it
+  components/
+    AssessmentView.tsx        read-only or editable render of a FirstAssessment
+    ConfidenceBadge.tsx        coverage score + formula explainer
+    ErrorBoundary.tsx          catches render errors, offers a way back
+    ui/                        Button, Card, Badge, Toast — small design
+                                system used everywhere instead of ad hoc
+                                Tailwind strings
+```
+
+Real client-side routes (not tab state) — `/history/:id` is a shareable,
+refresh-safe URL; browser back/forward works. API responses are validated at
+the boundary with Zod (`api.ts`) rather than trusted via a type assertion, so
+a backend contract change surfaces as a clear `ApiShapeError`, not a silent
+bad render. Data-fetching lives in hooks, not components, so pages stay
+mostly presentational.
+
+### Frontend tests
+
+```bash
+cd frontend
+npm test
+```
+
+Vitest + React Testing Library, mocking the `api` module — no live backend
+needed. Covers: `ConfidenceBadge` rendering/formula toggle, `AssessmentView`
+read-only vs. editable rendering and the "+ Add manually" flow, `api.ts`'s
+Zod validation (including rejecting a malformed response), and an
+`UploadPage` integration test covering the full parse → review → save path
+and the flagged-section highlighting.
 
 ## Running the pipeline directly
 

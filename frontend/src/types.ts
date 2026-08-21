@@ -1,82 +1,21 @@
-export interface ClinicalDetails {
-  clinicalHistory: string;
-  chiefComplaint: string;
-  duration: string;
-}
+import type { z } from "zod";
+import type {
+  firstAssessmentSchema,
+  parseDebugResultSchema,
+  savedAssessmentSchema,
+  sectionKeySchema,
+} from "./schemas";
 
-export interface SubjectiveAssessment {
-  testName: string;
-  conclusion: string;
-}
+export type SectionKey = z.infer<typeof sectionKeySchema>;
+export type FirstAssessment = z.infer<typeof firstAssessmentSchema>;
+export type SavedAssessment = z.infer<typeof savedAssessmentSchema>;
+export type ParseDebugResult = z.infer<typeof parseDebugResultSchema>;
 
-export interface ObjectiveTest {
-  testName: string;
-  unitName: string;
-  value: string;
-  left: string;
-  right: string;
-  comments: string;
-}
-
-export interface ObjectiveAssessment {
-  tests: ObjectiveTest[];
-}
-
-export interface SubjectiveGoal {
-  goalDetails: string;
-  targetDate: string;
-}
-
-export interface ObjectiveGoal {
-  goalName: string;
-  goalCategory: string;
-  unitName: string;
-  value: string;
-  targetDate: string;
-}
-
-export interface Recommendation {
-  sessionType: string;
-  sessionFrequency: string;
-}
-
-export interface PatientAdvice {
-  adviceDetails: string;
-}
-
-export interface FirstAssessment {
-  clinicalDetails: ClinicalDetails;
-  subjectiveAssessments: SubjectiveAssessment[];
-  objectiveAssessment: ObjectiveAssessment;
-  subjectiveGoals: SubjectiveGoal[];
-  objectiveGoals: ObjectiveGoal[];
-  recommendation: Recommendation[];
-  patientAdvice: PatientAdvice;
-}
-
-export interface SavedAssessment extends FirstAssessment {
-  id: string;
-  createdAt: string;
-}
-
-export interface ParseErrorDetail {
-  message: string;
-  low_confidence_sections: string[];
-}
-
-export type SectionKey =
-  | "clinicalDetails"
-  | "subjectiveAssessments"
-  | "objectiveAssessment"
-  | "subjectiveGoals"
-  | "objectiveGoals"
-  | "recommendation"
-  | "patientAdvice";
-
-export interface ParseDebugResult {
-  assessment: FirstAssessment;
-  transcript: string;
-  is_low_confidence: boolean;
-  low_confidence_sections: SectionKey[];
-  confidence: number;
-}
+export type ClinicalDetails = FirstAssessment["clinicalDetails"];
+export type SubjectiveAssessment = FirstAssessment["subjectiveAssessments"][number];
+export type ObjectiveAssessment = FirstAssessment["objectiveAssessment"];
+export type ObjectiveTest = ObjectiveAssessment["tests"][number];
+export type SubjectiveGoal = FirstAssessment["subjectiveGoals"][number];
+export type ObjectiveGoal = FirstAssessment["objectiveGoals"][number];
+export type Recommendation = FirstAssessment["recommendation"][number];
+export type PatientAdvice = FirstAssessment["patientAdvice"];
