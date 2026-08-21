@@ -13,6 +13,7 @@ export function UploadPanel() {
   const [lowConfidenceSections, setLowConfidenceSections] = useState<string[]>([]);
   const [savedId, setSavedId] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
 
   async function handleFile(file: File) {
     setFileName(file.name);
@@ -21,6 +22,7 @@ export function UploadPanel() {
     setLowConfidenceSections([]);
     setAssessment(null);
     setSavedId("");
+    isSavingRef.current = false;
 
     try {
       const result = await parseAssessment(file);
@@ -40,13 +42,15 @@ export function UploadPanel() {
   }
 
   async function handleSave() {
-    if (!assessment) return;
+    if (!assessment || isSavingRef.current) return;
+    isSavingRef.current = true;
     setStatus("saving");
     try {
       const { id } = await saveAssessment(assessment);
       setSavedId(id);
       setStatus("saved");
     } catch {
+      isSavingRef.current = false;
       setError("Failed to save assessment");
       setStatus("error");
     }
