@@ -1,4 +1,4 @@
-import type { FirstAssessment, ParseErrorDetail, SavedAssessment } from "./types";
+import type { FirstAssessment, ParseDebugResult, ParseErrorDetail, SavedAssessment } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -21,15 +21,15 @@ async function handle<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function parseAssessment(file: File): Promise<FirstAssessment> {
+export async function parseAssessment(file: File): Promise<ParseDebugResult> {
   const form = new FormData();
   form.append("file", file);
 
-  const response = await fetch(`${API_BASE}/assessments/parse`, {
+  const response = await fetch(`${API_BASE}/assessments/parse?include_debug=true`, {
     method: "POST",
     body: form,
   });
-  return handle<FirstAssessment>(response);
+  return handle<ParseDebugResult>(response);
 }
 
 export async function saveAssessment(assessment: FirstAssessment): Promise<{ id: string }> {

@@ -63,3 +63,20 @@ export interface ParseErrorDetail {
   message: string;
   low_confidence_sections: string[];
 }
+
+export type SectionKey =
+  | "clinicalDetails"
+  | "subjectiveAssessments"
+  | "objectiveAssessment"
+  | "subjectiveGoals"
+  | "objectiveGoals"
+  | "recommendation"
+  | "patientAdvice";
+
+export interface ParseDebugResult {
+  assessment: FirstAssessment;
+  transcript: string;
+  is_low_confidence: boolean;
+  low_confidence_sections: SectionKey[];
+  confidence: number;
+}

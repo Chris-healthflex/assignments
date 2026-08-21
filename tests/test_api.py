@@ -138,6 +138,63 @@ def test_parse_returns_422_when_broadly_low_confidence(app_client):
     assert "low_confidence_sections" in response.json()["detail"]
 
 
+def test_parse_include_debug_wraps_response_and_never_422s(app_client):
+    app, client = app_client
+    app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
+        ExtractionResult(
+            assessment=FirstAssessment(
+                clinicalDetails=ClinicalDetails(chiefComplaint="Knee pain")
+            ),
+            low_confidence_sections=[
+                "subjectiveAssessments",
+                "subjectiveGoals",
+                "objectiveGoals",
+                "recommendation",
+                "patientAdvice",
+            ],
+        )
+    )
+
+    response = client.post(
+        "/assessments/parse?include_debug=true",
+        files={"file": ("session.wav", io.BytesIO(b"RIFF....WAVEfmt "), "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["assessment"]["clinicalDetails"]["chiefComplaint"] == "Knee pain"
+    assert body["transcript"] == "Patient reports knee pain."
+    assert body["is_low_confidence"] is True
+    assert body["low_confidence_sections"] == [
+        "subjectiveAssessments",
+        "subjectiveGoals",
+        "objectiveGoals",
+        "recommendation",
+        "patientAdvice",
+    ]
+    assert body["confidence"] == round(2 / 7, 2)
+
+
+def test_parse_without_include_debug_returns_bare_schema(app_client):
+    _, client = app_client
+
+    response = client.post(
+        "/assessments/parse",
+        files={"file": ("session.wav", io.BytesIO(b"RIFF....WAVEfmt "), "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    assert set(response.json().keys()) == {
+        "clinicalDetails",
+        "subjectiveAssessments",
+        "objectiveAssessment",
+        "subjectiveGoals",
+        "objectiveGoals",
+        "recommendation",
+        "patientAdvice",
+    }
+
+
 def test_create_then_get_assessment(app_client):
     _, client = app_client
 

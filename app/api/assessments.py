@@ -7,7 +7,7 @@ from groq import Groq
 
 from app.config import Settings, get_settings
 from app.db.mongo import AssessmentNotFoundError, AssessmentRepository
-from app.schemas.first_assessment import FirstAssessment
+from app.schemas.first_assessment import ASSESSMENT_SECTIONS, FirstAssessment
 from app.services.extraction_graph import StructuredLLM, run_extraction
 from app.services.transcription import TranscriptionError, transcribe_audio
 
@@ -32,6 +32,16 @@ def get_extraction_llm() -> StructuredLLM | None:
 @router.post("/parse")
 async def parse_assessment(
     file: UploadFile,
+    include_debug: bool = Query(
+        default=False,
+        description=(
+            "Internal use by the demo frontend only. When true, wraps the "
+            "response with transcript/confidence/low_confidence_sections "
+            "instead of returning the bare FirstAssessment JSON, and skips "
+            "the 422 rejection so a human can review and complete flagged "
+            "sections before saving."
+        ),
+    ),
     settings: Settings = Depends(get_settings),
     groq_client: Groq = Depends(get_groq_client),
     llm: StructuredLLM | None = Depends(get_extraction_llm),
@@ -54,6 +64,20 @@ async def parse_assessment(
         confidence_threshold=settings.confidence_flag_threshold,
         api_key=settings.groq_api_key,
     )
+
+    if include_debug:
+        confidence = round(
+            (len(ASSESSMENT_SECTIONS) - len(result.low_confidence_sections))
+            / len(ASSESSMENT_SECTIONS),
+            2,
+        )
+        return {
+            "assessment": result.assessment.model_dump(),
+            "transcript": transcript,
+            "is_low_confidence": is_low_confidence,
+            "low_confidence_sections": result.low_confidence_sections,
+            "confidence": confidence,
+        }
 
     if is_low_confidence:
         raise HTTPException(
