@@ -1,15 +1,25 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { UploadPage } from "./UploadPage";
 import { ToastProvider } from "../components/ui/Toast";
+import { CommandProvider } from "../components/CommandPalette";
 import * as api from "../api";
 import type { ParseDebugResult } from "../types";
+
+beforeAll(() => {
+  // jsdom ships neither of these; the page uses them for audio playback and
+  // the JSON export.
+  URL.createObjectURL = vi.fn(() => "blob:mock-audio");
+  URL.revokeObjectURL = vi.fn();
+});
 
 function renderUploadPage() {
   return render(
     <ToastProvider>
-      <UploadPage />
+      <CommandProvider>
+        <UploadPage />
+      </CommandProvider>
     </ToastProvider>,
   );
 }
@@ -26,6 +36,20 @@ function fakeParseResult(overrides: Partial<ParseDebugResult> = {}): ParseDebugR
       patientAdvice: { adviceDetails: "" },
     },
     transcript: "Patient reports knee pain.",
+    segments: [
+      { id: 0, start: 0, end: 4.5, text: "Patient reports knee pain." },
+      { id: 1, start: 4.5, end: 9, text: "It started about three weeks ago." },
+    ],
+    evidence: [
+      {
+        field: "clinicalDetails.chiefComplaint",
+        segmentIds: [0],
+        quote: "Patient reports knee pain.",
+      },
+    ],
+    ungrounded_fields: [],
+    validation_issues: [],
+    attempts: 1,
     is_low_confidence: false,
     low_confidence_sections: [],
     confidence: 1,
@@ -108,6 +132,40 @@ describe("UploadPage", () => {
     });
     expect(
       screen.getByText(/Sections highlighted below weren't covered/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the transcript and reveals the cited segment for a field", async () => {
+    vi.spyOn(api, "parseAssessment").mockResolvedValue(fakeParseResult());
+
+    renderUploadPage();
+    const user = await uploadFile();
+
+    const citation = await screen.findByRole("button", {
+      name: "Show transcript evidence for Chief Complaint",
+    });
+    await user.click(citation);
+
+    const banner = await screen.findByText(/Showing the evidence for/);
+    expect(within(banner).getByText("Chief Complaint")).toBeInTheDocument();
+  });
+
+  it("warns when the agent could not trace a value back to the recording", async () => {
+    vi.spyOn(api, "parseAssessment").mockResolvedValue(
+      fakeParseResult({
+        evidence: [],
+        ungrounded_fields: ["clinicalDetails.chiefComplaint"],
+      }),
+    );
+
+    renderUploadPage();
+    await uploadFile();
+
+    expect(
+      await screen.findByText(/1 field could not be traced back to the recording/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Chief Complaint has no transcript evidence"),
     ).toBeInTheDocument();
   });
 });

@@ -58,8 +58,24 @@ export async function saveAssessment(assessment: FirstAssessment): Promise<{ id:
   return handle(response, createAssessmentResponseSchema, "POST /assessments");
 }
 
-export async function listAssessments(): Promise<SavedAssessment[]> {
-  const response = await fetch(`${API_BASE}/assessments`);
+export interface AssessmentFilters {
+  /** Inclusive lower bound as an ISO date (`YYYY-MM-DD`). */
+  dateFrom?: string;
+  /** Inclusive upper bound as an ISO date (`YYYY-MM-DD`). */
+  dateTo?: string;
+}
+
+export async function listAssessments(
+  filters: AssessmentFilters = {},
+): Promise<SavedAssessment[]> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("date_from", filters.dateFrom);
+  // `date_to` is parsed server-side as midnight, so widen it to the end of the
+  // chosen day — otherwise picking today silently excludes everything saved today.
+  if (filters.dateTo) params.set("date_to", `${filters.dateTo}T23:59:59`);
+
+  const query = params.toString();
+  const response = await fetch(`${API_BASE}/assessments${query ? `?${query}` : ""}`);
   return handle(response, z.array(savedAssessmentSchema), "GET /assessments");
 }
 

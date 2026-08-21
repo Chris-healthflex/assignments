@@ -75,9 +75,27 @@ export const savedAssessmentSchema = firstAssessmentSchema.extend({
   createdAt: z.string(),
 });
 
+export const transcriptSegmentSchema = z.object({
+  id: z.number(),
+  start: z.number(),
+  end: z.number(),
+  text: z.string(),
+});
+
+export const fieldEvidenceSchema = z.object({
+  field: z.string(),
+  segmentIds: z.array(z.number()),
+  quote: z.string(),
+});
+
 export const parseDebugResultSchema = z.object({
   assessment: firstAssessmentSchema,
   transcript: z.string(),
+  segments: z.array(transcriptSegmentSchema),
+  evidence: z.array(fieldEvidenceSchema),
+  ungrounded_fields: z.array(z.string()),
+  validation_issues: z.array(z.string()),
+  attempts: z.number(),
   is_low_confidence: z.boolean(),
   low_confidence_sections: z.array(sectionKeySchema),
   confidence: z.number(),

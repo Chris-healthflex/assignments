@@ -30,6 +30,17 @@ describe("parseAssessment", () => {
         jsonResponse({
           assessment: validAssessment,
           transcript: "hello",
+          segments: [{ id: 0, start: 0, end: 1.5, text: "hello" }],
+          evidence: [
+            {
+              field: "clinicalDetails.chiefComplaint",
+              segmentIds: [0],
+              quote: "hello",
+            },
+          ],
+          ungrounded_fields: [],
+          validation_issues: [],
+          attempts: 1,
           is_low_confidence: false,
           low_confidence_sections: [],
           confidence: 1,
@@ -40,6 +51,7 @@ describe("parseAssessment", () => {
     const result = await parseAssessment(new File([], "session.wav"));
     expect(result.transcript).toBe("hello");
     expect(result.assessment.clinicalDetails.chiefComplaint).toBe("Knee pain");
+    expect(result.evidence[0].segmentIds).toEqual([0]);
   });
 
   it("throws ApiShapeError when the response is missing required fields", async () => {
@@ -71,6 +83,26 @@ describe("parseAssessment", () => {
 });
 
 describe("listAssessments", () => {
+  it("widens the upper date bound to the end of the day so same-day saves are included", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listAssessments({ dateFrom: "2026-01-01", dateTo: "2026-01-31" });
+
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get("date_from")).toBe("2026-01-01");
+    expect(url.searchParams.get("date_to")).toBe("2026-01-31T23:59:59");
+  });
+
+  it("omits the query string entirely when no filters are set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listAssessments();
+
+    expect(fetchMock.mock.calls[0][0]).not.toContain("?");
+  });
+
   it("rejects a malformed array element instead of silently returning bad data", async () => {
     vi.stubGlobal(
       "fetch",

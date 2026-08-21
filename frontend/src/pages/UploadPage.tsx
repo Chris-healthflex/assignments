@@ -1,21 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParseAssessment } from "../hooks/useParseAssessment";
 import { useSaveAssessment } from "../hooks/useSaveAssessment";
 import type { FirstAssessment } from "../types";
 import { AssessmentView } from "../components/AssessmentView";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
+import { EvidencePanel } from "../components/EvidencePanel";
+import { useRegisterCommands } from "../components/CommandPalette";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 
+interface InspectedField {
+  path: string;
+  label: string;
+  segmentIds: number[];
+}
+
 export function UploadPage() {
-  const { status: parseStatus, result: parseResult, error: parseError, parse, reset: resetParse } =
-    useParseAssessment();
+  const {
+    status: parseStatus,
+    result: parseResult,
+    error: parseError,
+    parse,
+    reset: resetParse,
+  } = useParseAssessment();
   const { status: saveStatus, savedId, save, reset: resetSave } = useSaveAssessment();
+
   const [assessment, setAssessment] = useState<FirstAssessment | null>(null);
   const [fileName, setFileName] = useState<string>("");
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<InspectedField | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
@@ -23,6 +38,13 @@ export function UploadPage() {
   useEffect(() => {
     if (parseResult) setAssessment(parseResult.assessment);
   }, [parseResult]);
+
+  // The recording never leaves the browser for playback — we hand the <audio>
+  // element a blob URL for the very file that was uploaded, so evidence review
+  // needs no extra round trip and no server-side audio storage.
+  useEffect(() => () => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+  }, [audioUrl]);
 
   const hasUnsavedWork = parseResult !== null && saveStatus !== "saved";
 
@@ -35,10 +57,20 @@ export function UploadPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedWork]);
 
+  useEffect(() => {
+    if (saveStatus === "saved") toast.show("Assessment saved to MongoDB");
+    if (saveStatus === "error") toast.show("Failed to save assessment", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveStatus]);
+
   async function handleFile(file: File) {
     setFileName(file.name);
+    setAudioUrl((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
+    setInspected(null);
     resetSave();
-    setShowTranscript(false);
     await parse(file);
   }
 
@@ -47,24 +79,67 @@ export function UploadPage() {
     await save(assessment);
   }
 
-  useEffect(() => {
-    if (saveStatus === "saved") toast.show("Assessment saved to MongoDB");
-    if (saveStatus === "error") toast.show("Failed to save assessment", "error");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveStatus]);
+  function downloadJson() {
+    if (!assessment) return;
+    const blob = new Blob([JSON.stringify(assessment, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${fileName.replace(/\.wav$/i, "") || "assessment"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  useRegisterCommands(
+    assessment
+      ? [
+          {
+            id: "save-assessment",
+            group: "Assessment",
+            label: "Save to MongoDB",
+            run: () => void handleSave(),
+          },
+          {
+            id: "export-json",
+            group: "Assessment",
+            label: "Download as JSON",
+            run: downloadJson,
+          },
+          {
+            id: "choose-file",
+            group: "Assessment",
+            label: "Upload a different recording",
+            run: () => inputRef.current?.click(),
+          },
+        ]
+      : [
+          {
+            id: "choose-file",
+            group: "Assessment",
+            label: "Upload a recording",
+            run: () => inputRef.current?.click(),
+          },
+        ],
+    [assessment, fileName, saveStatus],
+  );
+
+  const ungroundedCount = parseResult?.ungrounded_fields.length ?? 0;
+  const segments = useMemo(() => parseResult?.segments ?? [], [parseResult]);
 
   return (
     <div className="space-y-6">
       {parseStatus === "idle" && (
         <div>
-          <h2 className="text-2xl font-semibold text-slate-900">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
             Turn a session recording into a structured assessment
           </h2>
-          <p className="mt-1 max-w-xl text-sm text-slate-600">
+          <p className="mt-1 max-w-xl text-sm text-slate-600 dark:text-slate-400">
             Upload a clinician–patient audio session. We'll transcribe it and
             extract clinical details, measurements, goals, and recommendations
-            into a structured record — flagging anything the recording didn't
-            cover so you can complete it by hand.
+            into a structured record — citing the moment in the recording each
+            value came from, and flagging anything it couldn't find.
           </p>
         </div>
       )}
@@ -72,8 +147,8 @@ export function UploadPage() {
       <div
         className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition ${
           isDragging
-            ? "border-teal-500 bg-teal-50"
-            : "border-slate-300 bg-white hover:border-teal-400"
+            ? "border-teal-500 bg-teal-50 dark:bg-teal-950/40"
+            : "border-slate-300 bg-white hover:border-teal-400 dark:border-slate-700 dark:bg-slate-900"
         }`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -88,7 +163,7 @@ export function UploadPage() {
         }}
       >
         <WaveformIcon className="mb-3 h-8 w-8 text-teal-500" />
-        <p className="mb-1 text-sm font-medium text-slate-700">
+        <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">
           Drop a clinical session WAV file here
         </p>
         <p className="mb-4 text-xs text-slate-500">or</p>
@@ -119,7 +194,7 @@ export function UploadPage() {
       )}
 
       {parseStatus === "error" && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <div className="flex items-start justify-between gap-4">
             <p className="font-medium">{parseError || "Something went wrong"}</p>
             <Button variant="ghost" onClick={resetParse} className="shrink-0">
@@ -132,45 +207,66 @@ export function UploadPage() {
       {parseResult && assessment && (
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-lg font-semibold text-slate-900">Extracted Assessment</h2>
-            {saveStatus === "saved" ? (
-              <Badge tone="teal" className="shrink-0">
-                Saved · id {savedId}
-              </Badge>
-            ) : (
-              <Button
-                variant="dark"
-                onClick={handleSave}
-                disabled={saveStatus === "saving"}
-                className="shrink-0"
-              >
-                {saveStatus === "saving" ? "Saving…" : "Save to MongoDB"}
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Extracted Assessment
+            </h2>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button variant="secondary" onClick={downloadJson}>
+                Download JSON
               </Button>
-            )}
+              {saveStatus === "saved" ? (
+                <Badge tone="teal">Saved · id {savedId}</Badge>
+              ) : (
+                <Button
+                  variant="dark"
+                  onClick={handleSave}
+                  disabled={saveStatus === "saving"}
+                >
+                  {saveStatus === "saving" ? "Saving…" : "Save to MongoDB"}
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <ConfidenceBadge
-              confidence={parseResult.confidence}
-              flaggedCount={parseResult.low_confidence_sections.length}
-            />
-            <Button
-              variant="secondary"
-              onClick={() => setShowTranscript((v) => !v)}
-              className="sm:self-start"
-            >
-              {showTranscript ? "Hide transcript" : "Show transcript"}
-            </Button>
-          </div>
+          <ConfidenceBadge
+            confidence={parseResult.confidence}
+            flaggedCount={parseResult.low_confidence_sections.length}
+          />
 
-          {showTranscript && (
-            <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-slate-900 p-4 text-sm leading-relaxed text-slate-100">
-              {parseResult.transcript}
+          {ungroundedCount > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+              <p className="font-medium text-amber-900 dark:text-amber-200">
+                {ungroundedCount} field{ungroundedCount === 1 ? "" : "s"} could not
+                be traced back to the recording
+              </p>
+              <p className="mt-1 text-amber-800 dark:text-amber-300">
+                They're marked <strong>⚠ unverified</strong> below. The extraction
+                agent filled them in but couldn't cite a transcript segment, so
+                check them against the audio before saving.
+              </p>
             </div>
           )}
 
+          {parseResult.attempts > 1 && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              The extraction agent corrected itself {parseResult.attempts - 1} time
+              {parseResult.attempts - 1 === 1 ? "" : "s"} before settling on this
+              result.
+            </p>
+          )}
+
+          {segments.length > 0 && (
+            <EvidencePanel
+              segments={segments}
+              audioUrl={audioUrl}
+              citedSegmentIds={inspected?.segmentIds ?? []}
+              citedFieldLabel={inspected?.label ?? null}
+              onClearCitation={() => setInspected(null)}
+            />
+          )}
+
           {parseResult.low_confidence_sections.length > 0 && (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Sections highlighted below weren't covered in the recording — click
               into them to complete by hand before saving.
             </p>
@@ -179,6 +275,14 @@ export function UploadPage() {
           <AssessmentView
             assessment={assessment}
             flaggedSections={parseResult.low_confidence_sections}
+            evidence={parseResult.evidence}
+            ungroundedFields={parseResult.ungrounded_fields}
+            inspectedField={inspected?.path ?? null}
+            onInspectField={(path, label, segmentIds) =>
+              setInspected((current) =>
+                current?.path === path ? null : { path, label, segmentIds },
+              )
+            }
             editable
             onChange={setAssessment}
           />
@@ -215,20 +319,22 @@ function HowItWorks() {
     },
     {
       title: "2. Transcribe & extract",
-      body: "Whisper transcribes the audio, then a LangGraph pipeline pulls out clinical details, measurements, goals, and recommendations.",
+      body: "Whisper produces a time-coded transcript, then a LangGraph agent extracts the assessment and cites the segment behind every value.",
     },
     {
-      title: "3. Review & save",
-      body: "Flagged sections the recording didn't cover are highlighted — fill them in, then save to MongoDB.",
+      title: "3. Verify & save",
+      body: "Click any value to hear where it came from. Anything the agent couldn't cite is flagged for review before saving.",
     },
   ];
 
   return (
-    <div className="grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-3">
+    <div className="grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-3 dark:border-slate-800">
       {steps.map((step) => (
         <div key={step.title}>
-          <p className="text-sm font-semibold text-slate-900">{step.title}</p>
-          <p className="mt-1 text-sm text-slate-500">{step.body}</p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {step.title}
+          </p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{step.body}</p>
         </div>
       ))}
     </div>
@@ -236,11 +342,18 @@ function HowItWorks() {
 }
 
 function ProcessingSteps() {
-  const steps = ["Transcribing audio", "Extracting clinical data", "Checking confidence"];
+  const steps = [
+    "Transcribing audio",
+    "Extracting clinical data",
+    "Checking every value against the transcript",
+  ];
   return (
     <ul className="space-y-2">
       {steps.map((step, i) => (
-        <li key={step} className="flex items-center gap-2 text-sm text-slate-600">
+        <li
+          key={step}
+          className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"
+        >
           <span
             className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-teal-500"
             style={{ animationDelay: `${i * 0.2}s` }}

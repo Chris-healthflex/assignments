@@ -21,8 +21,10 @@ export function useToast(): ToastContextValue {
 }
 
 const toneClasses: Record<ToastTone, string> = {
-  success: "border-teal-200 bg-teal-50 text-teal-900",
-  error: "border-red-200 bg-red-50 text-red-900",
+  success:
+    "border-teal-200 bg-teal-50 text-teal-900 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-100",
+  error:
+    "border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100",
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
