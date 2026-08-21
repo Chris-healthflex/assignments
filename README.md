@@ -11,6 +11,8 @@ consumes.
 - **LangGraph** — two-node extraction pipeline (extract → check confidence)
 - **Pydantic v2** — strict `FirstAssessment` schema
 - **MongoDB (Motor, async)** — persistence
+- **React + TypeScript + Tailwind (Vite)** — demo frontend (not a graded
+  deliverable; the JSON output is what the assignment actually requires)
 
 ## Why these choices
 
@@ -75,6 +77,24 @@ uvicorn app.main:app --reload
   `createdAt`
 
 Interactive docs at `http://localhost:8000/docs`.
+
+## Running the frontend (demo UI)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:5173`. It expects the API at
+`http://localhost:8000` by default — copy `frontend/.env.example` to
+`frontend/.env` and change `VITE_API_BASE_URL` if the API runs elsewhere.
+CORS is enabled on the API for `http://localhost:5173` (see `app/main.py`).
+
+Two views: **New Assessment** (drop/pick a WAV → see the transcribed +
+extracted `FirstAssessment`, sectioned and readable → save it) and
+**Saved Assessments** (browse everything previously saved via `GET
+/assessments`).
 
 ## Running the pipeline directly
 

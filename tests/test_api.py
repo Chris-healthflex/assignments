@@ -1,19 +1,25 @@
 import io
+from contextlib import asynccontextmanager
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from mongomock_motor import AsyncMongoMockClient
+from pymongo.errors import ServerSelectionTimeoutError
 
 from app.api.assessments import (
     get_extraction_llm,
     get_openai_client,
     get_repository,
-    router,
 )
 from app.db.mongo import get_repository as build_repository
+from app.main import create_app
 from app.schemas.first_assessment import ClinicalDetails, FirstAssessment
 from app.services.extraction_graph import ExtractionResult
+
+
+@asynccontextmanager
+async def _noop_lifespan(app):
+    yield
 
 
 class FakeLLM:
@@ -47,8 +53,7 @@ class FakeOpenAIClient:
 
 @pytest.fixture
 def app_client():
-    app = FastAPI()
-    app.include_router(router)
+    app = create_app(lifespan=_noop_lifespan)
 
     mongo_client = AsyncMongoMockClient()
     repository = build_repository(mongo_client, "test_db")
@@ -144,3 +149,18 @@ def test_list_assessments(app_client):
 
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+def test_mongo_unavailable_returns_503(app_client):
+    app, client = app_client
+
+    class _BrokenRepository:
+        async def list(self, date_from=None, date_to=None):
+            raise ServerSelectionTimeoutError("no servers found")
+
+    app.dependency_overrides[get_repository] = lambda: _BrokenRepository()
+
+    response = client.get("/assessments")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database unavailable"}
