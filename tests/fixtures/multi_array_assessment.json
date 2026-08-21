@@ -1,0 +1,25 @@
+{
+  "subjectiveGoals": [
+    {"goalDetails": "Goal 1", "targetDate": ""},
+    {"goalDetails": "Goal 2", "targetDate": ""},
+    {"goalDetails": "Goal 3", "targetDate": ""},
+    {"goalDetails": "Goal 4", "targetDate": ""},
+    {"goalDetails": "Goal 5", "targetDate": ""}
+  ],
+  "objectiveGoals": [
+    {"goalName": "Test goal 1", "goalCategory": "", "unitName": "", "value": "", "targetDate": ""},
+    {"goalName": "Test goal 2", "goalCategory": "", "unitName": "", "value": "", "targetDate": ""},
+    {"goalName": "Test goal 3", "goalCategory": "", "unitName": "", "value": "", "targetDate": ""},
+    {"goalName": "Test goal 4", "goalCategory": "", "unitName": "", "value": "", "targetDate": ""},
+    {"goalName": "Test goal 5", "goalCategory": "", "unitName": "", "value": "", "targetDate": ""}
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {"testName": "Test 1", "unitName": "", "value": "1", "left": "", "right": "", "comments": ""},
+      {"testName": "Test 2", "unitName": "", "value": "2", "left": "", "right": "", "comments": ""},
+      {"testName": "Test 3", "unitName": "", "value": "3", "left": "", "right": "", "comments": ""},
+      {"testName": "Test 4", "unitName": "", "value": "4", "left": "", "right": "", "comments": ""},
+      {"testName": "Test 5", "unitName": "", "value": "5", "left": "", "right": "", "comments": ""}
+    ]
+  }
+}
