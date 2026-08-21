@@ -1,0 +1,63 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "normal eight months ago; road traffic accident resulting in left tibial condyle fracture and avulsion ACL tear; open reduction and internal fixation performed by Dr. Hemant Kalyan",
+    "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking",
+    "duration": "eight months"
+  },
+  "subjectiveAssessments": [],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Knee flexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": ""
+      },
+      {
+        "testName": "Knee extension",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "5",
+        "comments": ""
+      },
+      {
+        "testName": "Hip internal rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "45",
+        "right": "45",
+        "comments": ""
+      },
+      {
+        "testName": "Hip external rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "60",
+        "right": "60",
+        "comments": ""
+      },
+      {
+        "testName": "Ankle dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": ""
+      }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [],
+  "recommendation": [
+    {
+      "sessionType": "physiotherapy",
+      "sessionFrequency": "once weekly for 4 sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": ""
+  }
+}

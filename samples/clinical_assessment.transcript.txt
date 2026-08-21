@@ -1,0 +1,33 @@
+--- Transcript ---
+The patient presented with left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery. The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condyle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight-bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity and presented for further management. She reports moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest. On assessment, a healed surgical scar was noted on the medial aspect of the knee, with restricted and painful knee flexion on overpressure, restricted extension and swelling. patellar mobility was good, while hip range of motion was generally full and pain-free although left hip extension was restricted. Objective measurements showed left knee flexion of 124 degrees compared with 130 degrees on the right, left knee extension of 20 degrees compared with nagig 5 degrees on the right, hip internal rotation of 45 degrees bilaterally, hip external rotation of 60 degrees bilaterally and ankle dorsiflexion of 4.5 degrees on the left compared with 12 degrees on the right. The provisional diagnosis was a left tibial condylar fracture, status postoperative 8 months. Physiotherapy was recommended once weekly for 4 sessions, with emphasis on restoring knee extension, improving knee stability and single leg stability, strengthening the quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain.
+
+(18 segments, 105.4s)
+
+--- FirstAssessment JSON ---
+
+--- Extraction audit (LLM calls: 1) ---
+  clinicalDetails.chiefComplaint  <- segment(s) 0, 1
+  clinicalDetails.clinicalHistory  <- segment(s) 2, 3, 4, 5
+  clinicalDetails.duration  <- segment(s) 2, 6
+  objectiveAssessment.tests[0].testName  <- segment(s) 10
+  objectiveAssessment.tests[0].left  <- segment(s) 10
+  objectiveAssessment.tests[0].right  <- segment(s) 10
+  objectiveAssessment.tests[0].unitName  <- segment(s) 10
+  objectiveAssessment.tests[1].testName  <- segment(s) 11
+  objectiveAssessment.tests[1].left  <- segment(s) 11
+  objectiveAssessment.tests[1].right  <- segment(s) 11
+  objectiveAssessment.tests[1].unitName  <- segment(s) 11
+  objectiveAssessment.tests[2].testName  <- segment(s) 12
+  objectiveAssessment.tests[2].left  <- segment(s) 12
+  objectiveAssessment.tests[2].right  <- segment(s) 12
+  objectiveAssessment.tests[2].unitName  <- segment(s) 12
+  objectiveAssessment.tests[3].testName  <- segment(s) 12
+  objectiveAssessment.tests[3].left  <- segment(s) 12
+  objectiveAssessment.tests[3].right  <- segment(s) 12
+  objectiveAssessment.tests[3].unitName  <- segment(s) 12
+  objectiveAssessment.tests[4].testName  <- segment(s) 13
+  objectiveAssessment.tests[4].left  <- segment(s) 13
+  objectiveAssessment.tests[4].right  <- segment(s) 13
+  objectiveAssessment.tests[4].unitName  <- segment(s) 13
+  recommendation[0].sessionFrequency  <- segment(s) 15, 16
+  recommendation[0].sessionType  <- segment(s) 15, 16
