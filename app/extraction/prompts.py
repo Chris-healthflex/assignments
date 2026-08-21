@@ -138,7 +138,7 @@ for example "three weeks" or "eight months".
 {_NO_ECHO}"""
 
 
-SUBJECTIVE = f"""Read the transcript and extract ONLY qualitative clinical findings.
+SUBJECTIVE = f"""Read the transcript and extract what the patient reported and what the clinician observed as qualitative clinical findings
 
 Produce one entry per distinct qualitative finding.
 
@@ -207,8 +207,8 @@ number that carries a unit.
 {_NO_ECHO}"""
 
 
-GOALS = f"""Read the transcript and list ONLY the treatment goals that are
-explicitly stated in the transcript.
+GOALS = f"""Read the transcript and list the treatment goals discussed.
+Only include goals that are explicitly stated in the transcript.
 
 There are two types of goals:
 
