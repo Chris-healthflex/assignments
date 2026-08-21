@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from bson import ObjectId
 
@@ -32,6 +32,17 @@ def get_assessment(assessment_id: str) -> AssessmentRecord | None:
     return _to_record(document) if document else None
 
 
+def _end_of_day(value: datetime) -> datetime:
+    """If to_date has no explicit time component (a bare date, e.g. 2026-08-21),
+    treat it as inclusive of the whole day rather than as midnight. A record
+    created at 05:50 on that date must still match a to_date filter for that
+    same date.
+    """
+    if value.time() == time.min:
+        return value + timedelta(days=1) - timedelta(microseconds=1)
+    return value
+
+
 def list_assessments(from_date: datetime | None = None, to_date: datetime | None = None) -> list[AssessmentRecord]:
     query: dict = {}
     if from_date or to_date:
@@ -39,5 +50,5 @@ def list_assessments(from_date: datetime | None = None, to_date: datetime | None
         if from_date:
             query["created_at"]["$gte"] = from_date
         if to_date:
-            query["created_at"]["$lte"] = to_date
+            query["created_at"]["$lte"] = _end_of_day(to_date)
     return [_to_record(document) for document in get_collection().find(query).sort("created_at", -1)]
