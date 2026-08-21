@@ -12,6 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from groq import Groq  # noqa: E402
+
 from app.config import get_settings  # noqa: E402
 from app.services.extraction_graph import run_extraction  # noqa: E402
 from app.services.transcription import TranscriptionError, transcribe_audio  # noqa: E402
@@ -28,15 +30,15 @@ def main() -> int:
         return 1
 
     settings = get_settings()
-    if not settings.openai_api_key:
+    if not settings.groq_api_key:
         print(
-            "OPENAI_API_KEY is not set. Copy .env.example to .env and fill it in.",
+            "GROQ_API_KEY is not set. Copy .env.example to .env and fill it in.",
             file=sys.stderr,
         )
         return 1
 
     try:
-        transcript = transcribe_audio(wav_path)
+        transcript = transcribe_audio(wav_path, client=Groq(api_key=settings.groq_api_key))
     except TranscriptionError as exc:
         print(f"Transcription failed: {exc}", file=sys.stderr)
         return 1
@@ -45,7 +47,9 @@ def main() -> int:
     print(transcript, file=sys.stderr)
 
     result, is_low_confidence = run_extraction(
-        transcript, confidence_threshold=settings.confidence_flag_threshold
+        transcript,
+        confidence_threshold=settings.confidence_flag_threshold,
+        api_key=settings.groq_api_key,
     )
 
     print("\n--- FirstAssessment JSON ---", file=sys.stderr)

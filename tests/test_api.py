@@ -8,7 +8,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 
 from app.api.assessments import (
     get_extraction_llm,
-    get_openai_client,
+    get_groq_client,
     get_repository,
 )
 from app.db.mongo import get_repository as build_repository
@@ -30,7 +30,7 @@ class FakeLLM:
         return self._result
 
 
-class FakeOpenAIClient:
+class FakeGroqClient:
     def __init__(self, transcript_text: str = "Patient reports knee pain."):
         self._transcript_text = transcript_text
 
@@ -59,7 +59,7 @@ def app_client():
     repository = build_repository(mongo_client, "test_db")
 
     app.dependency_overrides[get_repository] = lambda: repository
-    app.dependency_overrides[get_openai_client] = lambda: FakeOpenAIClient()
+    app.dependency_overrides[get_groq_client] = lambda: FakeGroqClient()
     app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
         ExtractionResult(
             assessment=FirstAssessment(

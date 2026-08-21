@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from openai import APIError
+from groq import APIError
 
 from app.services.transcription import TranscriptionError, transcribe_audio
 
@@ -35,7 +35,7 @@ def test_transcribe_audio_raises_on_empty_transcript(tmp_path: Path):
         transcribe_audio(wav_path, client=client)
 
 
-def test_transcribe_audio_wraps_openai_errors(tmp_path: Path):
+def test_transcribe_audio_wraps_groq_errors(tmp_path: Path):
     wav_path = tmp_path / "session.wav"
     wav_path.write_bytes(b"RIFF....WAVEfmt ")
 

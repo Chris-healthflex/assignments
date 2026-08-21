@@ -7,8 +7,9 @@ consumes.
 ## Stack
 
 - **FastAPI** — HTTP API
-- **OpenAI Whisper API** (`whisper-1`) — audio transcription
-- **LangGraph** — two-node extraction pipeline (extract → check confidence)
+- **Groq Whisper API** (`whisper-large-v3`) — audio transcription
+- **Groq Llama 3.3 70B via LangGraph** — two-node extraction pipeline
+  (extract → check confidence)
 - **Pydantic v2** — strict `FirstAssessment` schema
 - **MongoDB (Motor, async)** — persistence
 - **React + TypeScript + Tailwind (Vite)** — demo frontend (not a graded
@@ -16,9 +17,17 @@ consumes.
 
 ## Why these choices
 
-- **Whisper API over a local model**: local Whisper needs `ffmpeg` and a
-  multi-GB PyTorch install. The API needs only an API key and gives the same
-  transcription quality without the local footprint.
+- **Groq instead of OpenAI**: the assignment brief names "OpenAI Whisper" and
+  "LangChain/LangGraph" for extraction. Groq serves the same open-source
+  Whisper model (`whisper-large-v3`) over an OpenAI-compatible API, so
+  transcription quality is unchanged — the substitution is the inference
+  provider, not the model family. For extraction, Groq hosts Llama 3.3 70B
+  with tool-calling, which `ChatGroq(...).with_structured_output(...)` uses
+  the same way `ChatOpenAI` would. The swap was made because a Groq key was
+  available and OpenAI's wasn't; both `transcription.py` and
+  `extraction_graph.py` isolate the provider behind a small interface
+  (`Groq` client / `StructuredLLM` protocol), so switching back to OpenAI is
+  a localized change, not a rewrite.
 - **A 2-node LangGraph graph over a single LLM call**: the `extract` node
   produces both the `FirstAssessment` and a list of sections it wasn't
   confident about; `check_confidence` is a plain conditional node that turns
@@ -40,8 +49,8 @@ app/
   main.py                    FastAPI app, lifespan-managed Mongo client
   config.py                  env-based settings
   schemas/first_assessment.py  the FirstAssessment Pydantic models
-  services/transcription.py    Whisper API wrapper
-  services/extraction_graph.py LangGraph extraction pipeline
+  services/transcription.py    Groq Whisper API wrapper
+  services/extraction_graph.py LangGraph extraction pipeline (Groq Llama)
   db/mongo.py                  Motor-backed repository
   api/assessments.py            the 4 REST endpoints
 scripts/run_pipeline.py       CLI: WAV in, FirstAssessment JSON out
@@ -56,8 +65,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# then fill in OPENAI_API_KEY and MONGO_URI in .env
+# then fill in GROQ_API_KEY and MONGO_URI in .env
 ```
+
+Get a free `GROQ_API_KEY` at https://console.groq.com/keys.
 
 `MONGO_URI` should point at a MongoDB Atlas cluster (free M0 tier is enough):
 create a cluster at https://cloud.mongodb.com, add a database user, allow
@@ -110,7 +121,7 @@ Prints the transcript to stderr and the `FirstAssessment` JSON to stdout.
 pytest -v
 ```
 
-All LLM and Mongo calls are mocked/faked in tests — no `OPENAI_API_KEY` or
+All LLM and Mongo calls are mocked/faked in tests — no `GROQ_API_KEY` or
 real MongoDB connection is required to run the suite.
 
 ## Known limitations

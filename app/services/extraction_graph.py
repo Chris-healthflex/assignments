@@ -52,12 +52,14 @@ class StructuredLLM(Protocol):
     def invoke(self, messages: list) -> ExtractionResult: ...
 
 
-def _default_llm() -> StructuredLLM:
-    from langchain_openai import ChatOpenAI
+def _default_llm(api_key: str | None = None) -> StructuredLLM:
+    from langchain_groq import ChatGroq
 
-    return ChatOpenAI(model="gpt-4o", temperature=0).with_structured_output(
-        ExtractionResult
-    )
+    kwargs = {"model": "llama-3.3-70b-versatile", "temperature": 0}
+    if api_key:
+        kwargs["api_key"] = api_key
+
+    return ChatGroq(**kwargs).with_structured_output(ExtractionResult)
 
 
 def _build_extract_node(llm: StructuredLLM):
@@ -89,10 +91,14 @@ def _check_confidence(threshold: int):
     return check
 
 
-def build_extraction_graph(llm: StructuredLLM | None = None, confidence_threshold: int = 2):
+def build_extraction_graph(
+    llm: StructuredLLM | None = None,
+    confidence_threshold: int = 2,
+    api_key: str | None = None,
+):
     from langgraph.graph import END, StateGraph
 
-    llm = llm or _default_llm()
+    llm = llm or _default_llm(api_key=api_key)
 
     graph = StateGraph(ExtractionState)
     graph.add_node("extract", _build_extract_node(llm))
@@ -108,8 +114,11 @@ def run_extraction(
     transcript: str,
     llm: StructuredLLM | None = None,
     confidence_threshold: int = 2,
+    api_key: str | None = None,
 ) -> tuple[ExtractionResult, bool]:
     """Run the extraction graph and return (result, is_low_confidence)."""
-    compiled = build_extraction_graph(llm=llm, confidence_threshold=confidence_threshold)
+    compiled = build_extraction_graph(
+        llm=llm, confidence_threshold=confidence_threshold, api_key=api_key
+    )
     final_state = compiled.invoke({"transcript": transcript})
     return final_state["result"], final_state["is_low_confidence"]
