@@ -23,7 +23,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
@@ -150,9 +150,7 @@ def create_app() -> FastAPI:
 
         @app.get("/favicon.ico", include_in_schema=False)
         async def favicon():
-            # Browsers request this unprompted; 204 keeps it out of the logs.
-            return JSONResponse(status_code=204, content=None)
-
+            return Response(status_code=204)
     return app
 
 
