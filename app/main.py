@@ -10,10 +10,12 @@ from pymongo.errors import PyMongoError
 from app.api.assessments import get_repository, router
 from app.config import get_settings
 from app.db.mongo import get_repository as build_repository
+from app.observability import RequestContextMiddleware, configure_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     settings = get_settings()
     client_kwargs = {"serverSelectionTimeoutMS": 5000}
     if settings.mongo_uri.startswith("mongodb+srv://"):
@@ -40,7 +42,9 @@ def create_app(lifespan=lifespan) -> FastAPI:
         allow_origins=["http://localhost:5173"],
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+    app.add_middleware(RequestContextMiddleware)
 
     app.include_router(router)
 

@@ -44,20 +44,36 @@ def main() -> int:
         return 1
 
     print("--- Transcript ---", file=sys.stderr)
-    print(transcript, file=sys.stderr)
+    print(transcript.text, file=sys.stderr)
+    print(
+        f"\n({len(transcript.segments)} segments, {transcript.duration:.1f}s)",
+        file=sys.stderr,
+    )
 
-    result, is_low_confidence = run_extraction(
+    report, is_low_confidence = run_extraction(
         transcript,
         confidence_threshold=settings.confidence_flag_threshold,
         api_key=settings.groq_api_key,
     )
 
     print("\n--- FirstAssessment JSON ---", file=sys.stderr)
-    print(json.dumps(result.assessment.model_dump(), indent=2))
+    print(json.dumps(report.assessment.model_dump(), indent=2))
+
+    print(f"\n--- Extraction audit (LLM calls: {report.attempts}) ---", file=sys.stderr)
+    for entry in report.evidence:
+        segments = ", ".join(str(i) for i in entry.segmentIds)
+        print(f"  {entry.field}  <- segment(s) {segments}", file=sys.stderr)
+
+    if report.ungrounded_fields:
+        print(
+            f"\nWARNING: fields with no transcript evidence: "
+            f"{report.ungrounded_fields}",
+            file=sys.stderr,
+        )
 
     if is_low_confidence:
         print(
-            f"\nWARNING: low-confidence sections: {result.low_confidence_sections}",
+            f"\nWARNING: low-confidence sections: {report.low_confidence_sections}",
             file=sys.stderr,
         )
 

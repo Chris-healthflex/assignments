@@ -1,3 +1,4 @@
+import logging
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -7,11 +8,21 @@ from groq import Groq
 
 from app.config import Settings, get_settings
 from app.db.mongo import AssessmentNotFoundError, AssessmentRepository
+from app.observability import log_context
 from app.schemas.first_assessment import ASSESSMENT_SECTIONS, FirstAssessment
 from app.services.extraction_graph import StructuredLLM, run_extraction
-from app.services.transcription import TranscriptionError, transcribe_audio
+from app.services.transcription import (
+    TranscriptCache,
+    TranscriptionError,
+    transcribe_audio,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/assessments", tags=["assessments"])
+
+# Shared across requests so the same recording is never transcribed twice.
+_transcript_cache = TranscriptCache()
 
 
 def get_repository() -> AssessmentRepository:
@@ -29,6 +40,10 @@ def get_extraction_llm() -> StructuredLLM | None:
     return None
 
 
+def get_transcript_cache() -> TranscriptCache | None:
+    return _transcript_cache
+
+
 @router.post("/parse")
 async def parse_assessment(
     file: UploadFile,
@@ -36,15 +51,16 @@ async def parse_assessment(
         default=False,
         description=(
             "Internal use by the demo frontend only. When true, wraps the "
-            "response with transcript/confidence/low_confidence_sections "
-            "instead of returning the bare FirstAssessment JSON, and skips "
-            "the 422 rejection so a human can review and complete flagged "
-            "sections before saving."
+            "response with the transcript segments, per-field evidence and "
+            "validation audit instead of returning the bare FirstAssessment "
+            "JSON, and skips the 422 rejection so a human can review and "
+            "complete flagged sections before saving."
         ),
     ),
     settings: Settings = Depends(get_settings),
     groq_client: Groq = Depends(get_groq_client),
     llm: StructuredLLM | None = Depends(get_extraction_llm),
+    cache: TranscriptCache | None = Depends(get_transcript_cache),
 ):
     if not file.filename or not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Only .wav files are supported")
@@ -54,28 +70,52 @@ async def parse_assessment(
         tmp.flush()
 
         try:
-            transcript = transcribe_audio(Path(tmp.name), client=groq_client)
+            transcript = transcribe_audio(
+                Path(tmp.name), client=groq_client, cache=cache
+            )
         except TranscriptionError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    result, is_low_confidence = run_extraction(
+    logger.info(
+        "transcribed upload",
+        extra=log_context(
+            upload=file.filename,
+            segments=len(transcript.segments),
+            duration_s=round(transcript.duration, 1),
+        ),
+    )
+
+    report, is_low_confidence = run_extraction(
         transcript,
         llm=llm,
         confidence_threshold=settings.confidence_flag_threshold,
         api_key=settings.groq_api_key,
     )
 
+    logger.info(
+        "extraction complete",
+        extra=log_context(
+            attempts=report.attempts,
+            low_confidence_sections=report.low_confidence_sections,
+            ungrounded_fields=report.ungrounded_fields,
+        ),
+    )
+
     if include_debug:
+        flagged = len(report.low_confidence_sections)
         confidence = round(
-            (len(ASSESSMENT_SECTIONS) - len(result.low_confidence_sections))
-            / len(ASSESSMENT_SECTIONS),
-            2,
+            (len(ASSESSMENT_SECTIONS) - flagged) / len(ASSESSMENT_SECTIONS), 2
         )
         return {
-            "assessment": result.assessment.model_dump(),
-            "transcript": transcript,
+            "assessment": report.assessment.model_dump(),
+            "transcript": transcript.text,
+            "segments": [segment.model_dump() for segment in transcript.segments],
+            "evidence": [entry.model_dump() for entry in report.evidence],
+            "ungrounded_fields": report.ungrounded_fields,
+            "validation_issues": report.validation_issues,
+            "attempts": report.attempts,
             "is_low_confidence": is_low_confidence,
-            "low_confidence_sections": result.low_confidence_sections,
+            "low_confidence_sections": report.low_confidence_sections,
             "confidence": confidence,
         }
 
@@ -84,11 +124,12 @@ async def parse_assessment(
             status_code=422,
             detail={
                 "message": "Extraction confidence below threshold",
-                "low_confidence_sections": result.low_confidence_sections,
+                "low_confidence_sections": report.low_confidence_sections,
             },
         )
 
-    return result.assessment.model_dump()
+    # The graded contract: the bare FirstAssessment, no extra keys.
+    return report.assessment.model_dump()
 
 
 @router.post("", status_code=201)

@@ -10,11 +10,15 @@ from app.api.assessments import (
     get_extraction_llm,
     get_groq_client,
     get_repository,
+    get_transcript_cache,
 )
 from app.db.mongo import get_repository as build_repository
 from app.main import create_app
 from app.schemas.first_assessment import ClinicalDetails, FirstAssessment
-from app.services.extraction_graph import ExtractionResult
+from app.services.extraction_graph import ExtractionResult, FieldEvidence
+
+
+_WAV_BYTES = b"RIFF....WAVEfmt "
 
 
 @asynccontextmanager
@@ -39,9 +43,12 @@ class FakeGroqClient:
         outer = self
 
         class _Transcriptions:
-            def create(self, model, file):
+            def create(self, model, file, response_format=None):
                 class _Transcript:
                     text = outer._transcript_text
+                    segments = [
+                        {"start": 0.0, "end": 3.0, "text": outer._transcript_text}
+                    ]
 
                 return _Transcript()
 
@@ -60,12 +67,22 @@ def app_client():
 
     app.dependency_overrides[get_repository] = lambda: repository
     app.dependency_overrides[get_groq_client] = lambda: FakeGroqClient()
+    # Disable the shared transcript cache: every test posts byte-identical
+    # audio, so a live cache would leak one test's transcript into the next.
+    app.dependency_overrides[get_transcript_cache] = lambda: None
     app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
         ExtractionResult(
             assessment=FirstAssessment(
                 clinicalDetails=ClinicalDetails(chiefComplaint="Knee pain")
             ),
             low_confidence_sections=[],
+            evidence=[
+                FieldEvidence(
+                    field="clinicalDetails.chiefComplaint",
+                    segmentIds=[0],
+                    quote="Patient reports knee pain.",
+                )
+            ],
         )
     )
 
@@ -193,6 +210,66 @@ def test_parse_without_include_debug_returns_bare_schema(app_client):
         "recommendation",
         "patientAdvice",
     }
+
+
+def test_parse_include_debug_exposes_transcript_segments_and_evidence(app_client):
+    _, client = app_client
+
+    response = client.post(
+        "/assessments/parse?include_debug=true",
+        files={"file": ("session.wav", io.BytesIO(_WAV_BYTES), "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["segments"] == [
+        {"id": 0, "start": 0.0, "end": 3.0, "text": "Patient reports knee pain."}
+    ]
+    assert body["evidence"] == [
+        {
+            "field": "clinicalDetails.chiefComplaint",
+            "segmentIds": [0],
+            "quote": "Patient reports knee pain.",
+        }
+    ]
+    assert body["ungrounded_fields"] == []
+    assert body["validation_issues"] == []
+    assert body["attempts"] == 1
+
+
+def test_parse_include_debug_reports_ungrounded_values(app_client):
+    """A value the model cannot cite must be surfaced, not silently trusted."""
+    app, client = app_client
+    app.dependency_overrides[get_extraction_llm] = lambda: FakeLLM(
+        ExtractionResult(
+            assessment=FirstAssessment(
+                clinicalDetails=ClinicalDetails(
+                    chiefComplaint="Knee pain", duration="8 months"
+                )
+            ),
+            evidence=[
+                FieldEvidence(field="clinicalDetails.chiefComplaint", segmentIds=[0])
+            ],
+        )
+    )
+
+    response = client.post(
+        "/assessments/parse?include_debug=true",
+        files={"file": ("session.wav", io.BytesIO(_WAV_BYTES), "audio/wav")},
+    )
+
+    body = response.json()
+    assert body["ungrounded_fields"] == ["clinicalDetails.duration"]
+    assert body["attempts"] == 2  # the graph tried to correct itself
+
+
+def test_response_carries_a_request_id_header(app_client):
+    _, client = app_client
+
+    response = client.get("/assessments")
+
+    assert response.headers.get("X-Request-ID")
 
 
 def test_create_then_get_assessment(app_client):
