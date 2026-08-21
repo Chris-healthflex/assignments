@@ -33,7 +33,6 @@ class ExtractionOutput(StrictModel):
         )
     )
 
-
 SYSTEM_PROMPT = """You extract clinical assessment data from a clinician-patient transcript.
 
 Return only data explicitly supported by the transcript. Never infer or hallucinate clinical
@@ -57,13 +56,21 @@ extension", "Improve ankle mobility"), goalCategory is a short label like "Range
 value, and targetDate as empty strings when no number or date is stated - populate them only
 if the transcript gives one.
 
+For each recommendation entry, sessionType is the type or modality of session (for example
+"Physiotherapy", "Occupational Therapy", "Follow-up consultation") - never a count, schedule,
+or number of sessions. sessionFrequency is the schedule itself (for example "once weekly",
+"twice weekly for six weeks", "once weekly for four sessions") - it should capture how often
+and how many sessions were stated together as one phrase, not split across two fields. If the
+transcript says "physiotherapy was recommended once weekly for four sessions," sessionType is
+"Physiotherapy" and sessionFrequency is "once weekly for four sessions" - do not place any part
+of the frequency phrase into sessionType.
+
 Along with the assessment, report your own confidence for each field you populated, per the
 field_confidence instructions. Under-report confidence rather than over-report it: if you are
 not certain the transcript directly supports a value, score it low so it can be flagged for
 human review instead of silently accepted.
 
 The output must conform exactly to the supplied schema."""
-
 
 def _extract_with_model(state: ExtractionState, model: Any) -> ExtractionState:
     structured = model.with_structured_output(ExtractionOutput)
