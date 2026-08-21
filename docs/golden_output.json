@@ -1,0 +1,72 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "Patient was normal eight months ago, then involved in a road traffic accident resulting in left tibial condy fracture and avulsion ACL tear; underwent open reduction and internal fixation, followed by 4-6 weeks non-weight bearing and progressive loading.",
+    "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery",
+    "duration": "8 months"
+  },
+  "subjectiveAssessments": [
+    {
+      "testName": "Presenting symptoms",
+      "conclusion": "Left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking"
+    },
+    {
+      "testName": "Pain characteristics",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing, relieved with rest"
+    }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Knee flexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": ""
+      },
+      {
+        "testName": "Knee extension",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "5",
+        "comments": ""
+      },
+      {
+        "testName": "Hip internal rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "45",
+        "right": "45",
+        "comments": ""
+      },
+      {
+        "testName": "Hip external rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "60",
+        "right": "60",
+        "comments": ""
+      },
+      {
+        "testName": "Ankle dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": ""
+      }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [],
+  "recommendation": [
+    {
+      "sessionType": "Physiotherapy",
+      "sessionFrequency": "once weekly for four sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": "Physiotherapy was recommended once weekly for four sessions, with emphasis on restoring the extension, improving knee stability and single leg stability, strengthening the quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain."
+  }
+}
