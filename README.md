@@ -138,6 +138,8 @@ CONFIDENCE_THRESHOLD=0.70
     ]
   }
   ```
+- **Swagger UI Parsing Demo:**
+  ![Swagger UI Parsing Endpoint Execution](assets/swagger_docs.png)
 
 ### 2. `GET /assessments/{id}`
 - **Description:** Retrieve an assessment by its MongoDB ObjectId.
