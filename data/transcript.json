@@ -1,0 +1,135 @@
+{
+  "text": "The patient presented with left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery. The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condol fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity and presented for further management. She reports moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest. On assessment, a healed surgical scar was noted on the medial aspect of the knee, with restricted and painful knee flexion on over pressure, restricted extension and swelling. Patellar mobility was good, while hip range of motion was generally full and pain-free although left hip extension was restricted. Objective measurements showed left knee flexion of 124° compared with 130° on the right, left knee extension of 20° compared with neigig 5° on the right, hip internal rotation of 45° bilaterally, hip external rotation of 60° bilaterally and ankle dosa flexion of 4.5° on the left compared with 12° on the right. The provisional diagnosis was a left-to-be-all-condylo fracture, status post-operative eight months. Physiotherapy was recommended once weekly for four sessions, with emphasis on restoring the extension, improving knee stability and single leg stability, strengthening the quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.68,
+      "text": "The patient presented with left knee pain, difficulty performing functional activities"
+    },
+    {
+      "start": 4.68,
+      "end": 9.04,
+      "text": "and difficulty walking along with ankle and back pain during prolonged walking following"
+    },
+    {
+      "start": 9.04,
+      "end": 10.04,
+      "text": "surgery."
+    },
+    {
+      "start": 10.04,
+      "end": 14.72,
+      "text": "The patient was apparently normal eight months ago when she was involved in a road traffic"
+    },
+    {
+      "start": 14.72,
+      "end": 20.12,
+      "text": "accident resulting in a left tibial condol fracture and an avulsion ACL tear."
+    },
+    {
+      "start": 20.12,
+      "end": 24.68,
+      "text": "Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed"
+    },
+    {
+      "start": 24.68,
+      "end": 29.6,
+      "text": "by four to six weeks of non-weight bearing and subsequent progressive loading."
+    },
+    {
+      "start": 29.6,
+      "end": 34.04,
+      "text": "Despite eight months having passed, the patient has not returned to full functional activity"
+    },
+    {
+      "start": 34.04,
+      "end": 36.52,
+      "text": "and presented for further management."
+    },
+    {
+      "start": 36.52,
+      "end": 41.8,
+      "text": "She reports moderate pain with mild irritability particularly during prolonged walking and standing,"
+    },
+    {
+      "start": 41.8,
+      "end": 43.44,
+      "text": "which is relieved with rest."
+    },
+    {
+      "start": 43.44,
+      "end": 48.2,
+      "text": "On assessment, a healed surgical scar was noted on the medial aspect of the knee,"
+    },
+    {
+      "start": 48.2,
+      "end": 52.72,
+      "text": "with restricted and painful knee flexion on over pressure, restricted extension and"
+    },
+    {
+      "start": 52.72,
+      "end": 53.72,
+      "text": "swelling."
+    },
+    {
+      "start": 53.72,
+      "end": 57.88,
+      "text": "Patellar mobility was good, while hip range of motion was generally full and pain-free"
+    },
+    {
+      "start": 57.88,
+      "end": 62.94,
+      "text": "although left hip extension was restricted. Objective measurements showed left knee flexion"
+    },
+    {
+      "start": 62.94,
+      "end": 69.72,
+      "text": "of 124° compared with 130° on the right, left knee extension of 20° compared with"
+    },
+    {
+      "start": 69.72,
+      "end": 76.32,
+      "text": "neigig 5° on the right, hip internal rotation of 45° bilaterally, hip external rotation"
+    },
+    {
+      "start": 76.32,
+      "end": 82.86,
+      "text": "of 60° bilaterally and ankle dosa flexion of 4.5° on the left compared with 12° on"
+    },
+    {
+      "start": 82.86,
+      "end": 83.86,
+      "text": "the right."
+    },
+    {
+      "start": 83.86,
+      "end": 90.34,
+      "text": "The provisional diagnosis was a left-to-be-all-condylo fracture, status post-operative eight months."
+    },
+    {
+      "start": 90.34,
+      "end": 94.34,
+      "text": "Physiotherapy was recommended once weekly for four sessions, with emphasis on restoring"
+    },
+    {
+      "start": 94.34,
+      "end": 99.5,
+      "text": "the extension, improving knee stability and single leg stability, strengthening the quadriceps"
+    },
+    {
+      "start": 99.5,
+      "end": 104.98,
+      "text": "and functional lower limb musculature, improving ankle mobility, and activating the posterior"
+    },
+    {
+      "start": 104.98,
+      "end": 105.54,
+      "text": "chain."
+    }
+  ],
+  "language": "en",
+  "durationSeconds": 105.55,
+  "backend": "faster-whisper",
+  "model": "small",
+  "transcribeSeconds": 16.5
+}

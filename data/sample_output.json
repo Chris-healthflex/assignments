@@ -1,0 +1,217 @@
+{
+  "assessment": {
+    "clinicalDetails": {
+      "clinicalHistory": "The patient was involved in a road traffic accident resulting in a left tibial condyle fracture and an avulsion ACL tear eight months ago. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity and presented for further management.",
+      "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking",
+      "duration": "eight months"
+    },
+    "subjectiveAssessments": [
+      {
+        "testName": "Left knee pain",
+        "conclusion": "Patient reports moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest."
+      },
+      {
+        "testName": "Left knee flexion",
+        "conclusion": "Left knee flexion of 124° compared with 130° on the right."
+      },
+      {
+        "testName": "Left knee extension",
+        "conclusion": "Left knee extension of 20° compared with 5° on the right."
+      },
+      {
+        "testName": "Left hip internal rotation",
+        "conclusion": "Hip internal rotation of 45° bilaterally."
+      },
+      {
+        "testName": "Left hip external rotation",
+        "conclusion": "Hip external rotation of 60° bilaterally."
+      },
+      {
+        "testName": "Left ankle dorsiflexion",
+        "conclusion": "Ankle dorsiflexion of 4.5° on the left compared with 12° on the right."
+      }
+    ],
+    "objectiveAssessment": {
+      "tests": [
+        {
+          "testName": "left knee flexion",
+          "unitName": "degrees",
+          "value": "",
+          "left": "124",
+          "right": "130",
+          "comments": ""
+        },
+        {
+          "testName": "left knee extension",
+          "unitName": "degrees",
+          "value": "",
+          "left": "20",
+          "right": "5",
+          "comments": ""
+        },
+        {
+          "testName": "left hip internal rotation",
+          "unitName": "",
+          "value": "",
+          "left": "45",
+          "right": "45",
+          "comments": ""
+        },
+        {
+          "testName": "left hip external rotation",
+          "unitName": "",
+          "value": "",
+          "left": "60",
+          "right": "60",
+          "comments": ""
+        },
+        {
+          "testName": "left ankle dorsiflexion",
+          "unitName": "degrees",
+          "value": "",
+          "left": "4.5",
+          "right": "12",
+          "comments": ""
+        }
+      ]
+    },
+    "subjectiveGoals": [
+      {
+        "goalDetails": "moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest",
+        "targetDate": ""
+      }
+    ],
+    "objectiveGoals": [
+      {
+        "goalName": "restore extension",
+        "goalCategory": "mobility",
+        "unitName": "degrees",
+        "value": "20°",
+        "targetDate": ""
+      },
+      {
+        "goalName": "improve knee stability",
+        "goalCategory": "mobility",
+        "unitName": "degrees",
+        "value": "124°",
+        "targetDate": ""
+      },
+      {
+        "goalName": "strengthen quadriceps",
+        "goalCategory": "",
+        "unitName": "",
+        "value": "",
+        "targetDate": ""
+      },
+      {
+        "goalName": "improve ankle mobility",
+        "goalCategory": "mobility",
+        "unitName": "degrees",
+        "value": "4.5°",
+        "targetDate": ""
+      },
+      {
+        "goalName": "activate posterior chain",
+        "goalCategory": "mobility",
+        "unitName": "",
+        "value": "",
+        "targetDate": ""
+      }
+    ],
+    "recommendation": [
+      {
+        "sessionType": "Physiotherapy",
+        "sessionFrequency": "once weekly for four sessions"
+      }
+    ],
+    "patientAdvice": {
+      "adviceDetails": ""
+    }
+  },
+  "transcript": {
+    "text": "The patient presented with left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery. The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condol fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity and presented for further management. She reports moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest. On assessment, a healed surgical scar was noted on the medial aspect of the knee, with restricted and painful knee flexion on over pressure, restricted extension and swelling. Patellar mobility was good, while hip range of motion was generally full and pain-free although left hip extension was restricted. Objective measurements showed left knee flexion of 124° compared with 130° on the right, left knee extension of 20° compared with neigig 5° on the right, hip internal rotation of 45° bilaterally, hip external rotation of 60° bilaterally and ankle dosa flexion of 4.5° on the left compared with 12° on the right. The provisional diagnosis was a left-to-be-all-condylo fracture, status post-operative eight months. Physiotherapy was recommended once weekly for four sessions, with emphasis on restoring the extension, improving knee stability and single leg stability, strengthening the quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain.",
+    "language": "en",
+    "durationSeconds": 105.55,
+    "segments": 25,
+    "model": "small",
+    "backend": "faster-whisper"
+  },
+  "confidence": {
+    "overall": 0.65,
+    "threshold": 0.55,
+    "meetsThreshold": true,
+    "sectionScores": {
+      "clinicalDetails": 1.0,
+      "objectiveAssessment": 1.0,
+      "subjectiveAssessments": 1.0,
+      "recommendation": 1.0,
+      "subjectiveGoals": 1.0,
+      "objectiveGoals": 1.0,
+      "patientAdvice": 0.0
+    },
+    "rejectedCount": 3
+  },
+  "flaggedFields": [
+    {
+      "path": "objectiveGoals[2].goalCategory",
+      "reason": "rejected",
+      "detail": "value 'strength' discarded: only 0% of content words appear in the transcript"
+    },
+    {
+      "path": "objectiveGoals[2].unitName",
+      "reason": "rejected",
+      "detail": "value 'percent' discarded: only 0% of content words appear in the transcript"
+    },
+    {
+      "path": "objectiveGoals[4].unitName",
+      "reason": "rejected",
+      "detail": "value 'percent' discarded: only 0% of content words appear in the transcript"
+    },
+    {
+      "path": "patientAdvice.adviceDetails",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "objectiveGoals[0].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "objectiveGoals[1].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "objectiveGoals[2].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "objectiveGoals[3].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "objectiveGoals[4].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    },
+    {
+      "path": "subjectiveGoals[0].targetDate",
+      "reason": "not_stated",
+      "detail": ""
+    }
+  ],
+  "timings": {
+    "clinicalDetails": 23.58,
+    "subjective": 23.69,
+    "objective": 33.55,
+    "goals": 28.71,
+    "plan": 13.52,
+    "grounding": 0.04,
+    "assemble": 0.0,
+    "confidence": 0.0,
+    "total": 123.11
+  }
+}
