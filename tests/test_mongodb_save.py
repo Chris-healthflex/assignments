@@ -10,7 +10,7 @@ def main():
             "duration": "3 weeks",
         },
         subjectiveAssessments=[],
-        objectiveAssessments=[],
+        objectiveAssessment={"tests": []},
         subjectiveGoals=[],
         objectiveGoals=[],
         recommendation=[],

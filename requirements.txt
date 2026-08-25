@@ -1,8 +1,13 @@
 fastapi
 uvicorn
+python-multipart
 pydantic
+python-dotenv
+pymongo
 langchain
 langgraph
-pymongo
-whisper
-python-multipart
+langchain-google-genai
+openai-whisper
+torch
+pytest
+httpx

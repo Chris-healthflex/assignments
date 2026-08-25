@@ -37,3 +37,15 @@ class MongoDB:
 
         self.database = self.client[database_name]
         self.collection = self.database[collection_name]
+
+    def save_assessment(self, assessment: FirstAssessment) -> str:
+        data = assessment.model_dump()
+        data["createdAt"] = datetime.now(timezone.utc)
+        result = self.collection.insert_one(data)
+        return str(result.inserted_id)
+        
+    def get_assessment(self, assessment_id: str) -> dict | None:
+        result = self.collection.find_one({"_id": ObjectId(assessment_id)})
+        if result:
+            result["_id"] = str(result["_id"])
+        return result

@@ -2,9 +2,9 @@ import json
 
 from app.database.mongodb import MongoDB
 from app.graph.assessment_graph import (
-    CONFIDENCE_THRESHOLD,
     build_assessment_graph,
 )
+from app.services.extraction import CONFIDENCE_THRESHOLD
 from app.services.transcription import WhisperTranscriber
 
 
