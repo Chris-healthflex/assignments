@@ -27,7 +27,7 @@ class GraphState(TypedDict, total=False):
 #: Sensible default model per provider, used when LLM_MODEL is blank.
 _PROVIDER_DEFAULTS = {
     "openai": "gpt-4o-mini",
-    "google": "gemini-3.5-flash",
+    "google": "gemini-3.6-flash",
     "groq": "llama-3.3-70b-versatile",
 }
 
