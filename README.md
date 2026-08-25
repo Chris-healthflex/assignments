@@ -79,7 +79,7 @@ Set `LLM_PROVIDER` and the matching API key. Every other value has a working def
 | --- | --- | --- |
 | `LLM_PROVIDER` | `openai` | `openai`, `google`, or `groq` |
 | `OPENAI_API_KEY` / `GOOGLE_API_KEY` / `GROQ_API_KEY` | – | Key for the chosen provider (**one required**) |
-| `LLM_MODEL` | provider default | Blank uses `gpt-4o-mini` / `gemini-2.0-flash` / `llama-3.3-70b-versatile` |
+| `LLM_MODEL` | provider default | Blank uses `gpt-4o-mini` / `gemini-3.5-flash` / `llama-3.3-70b-versatile` |
 | `LLM_TEMPERATURE` | `0.0` | Deterministic extraction |
 | `WHISPER_MODEL` | `base.en` | Whisper model size |
 | `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
