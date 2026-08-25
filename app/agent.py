@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from typing import TypedDict
 
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langgraph.graph import END, START, StateGraph
 
 from .schemas import ExtractionEnvelope
@@ -30,10 +30,10 @@ arrays. Keep evidence wording concise and faithful to the transcript."""
 
 
 def _extract(state: ExtractionState) -> dict:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise ExtractionError("OPENAI_API_KEY is required for structured extraction.")
+    if not os.getenv("GROQ_API_KEY"):
+        raise ExtractionError("GROQ_API_KEY is required for structured extraction.")
     try:
-        model = ChatOpenAI(model=os.getenv("EXTRACTION_MODEL", "gpt-4o-mini"), temperature=0)
+        model = ChatGroq(model=os.getenv("EXTRACTION_MODEL", "openai/gpt-oss-120b"), temperature=0)
         extractor = model.with_structured_output(ExtractionEnvelope)
         result = extractor.invoke(
             [("system", SYSTEM_PROMPT), ("human", state["transcript"])]

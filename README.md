@@ -8,7 +8,7 @@ and stores confirmed results in MongoDB.
 
 1. Use Python 3.10+ and create/activate a virtual environment.
 2. Run `pip install -r requirements.txt`.
-3. Copy `.env.example` to `.env`, then set `OPENAI_API_KEY` and `MONGODB_URI`.
+3. Copy `.env.example` to `.env`, then set `GROQ_API_KEY` and `MONGODB_URI`.
 4. Start MongoDB, then run `uvicorn app.main:app --reload`.
 
 Swagger UI is at `http://127.0.0.1:8000/docs`.
@@ -44,10 +44,11 @@ does not support a complete assessment; this is the intentional safety behavior.
 
 ## Design decisions
 
-Whisper uses the OpenAI transcription API (`whisper-1`) for dependable WAV
-handling without shipping a local model. A one-node LangGraph makes the
-transcription → extraction boundary explicit and is easy to extend with review
-or de-identification nodes. The extraction model uses Pydantic structured output
-and an internal uncertainty envelope; only the exact production schema is ever
-returned from the parse endpoint. MongoDB documents add `_id` and `createdAt`
-only at persistence time, while the assessment payload itself remains unchanged.
+Whisper uses Groq's free hosted transcription API (`whisper-large-v3-turbo`)
+for dependable WAV handling without shipping a local model. A one-node
+LangGraph makes the transcription → extraction boundary explicit and is easy to
+extend with review or de-identification nodes. The extraction model uses
+LangChain structured output against Groq (an OpenAI-compatible endpoint) and an
+internal uncertainty envelope; only the exact production schema is ever returned
+from the parse endpoint. MongoDB documents add `_id` and `createdAt` only at
+persistence time, while the assessment payload itself remains unchanged.
