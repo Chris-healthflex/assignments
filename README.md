@@ -30,6 +30,97 @@ WAV upload
 
 ---
 
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Client] -->|multipart WAV| B[POST /assessments/parse]
+    B --> C[WhisperTranscriber]
+    C -->|validate RIFF/WAVE| C
+    C -->|transcript| D[LangGraph agent]
+    D -->|ExtractionEnvelope| E[Confidence gate]
+    E -->|all sections pass| F[FirstAssessment JSON - 200]
+    E -->|any section below threshold| G[422 + field-level detail]
+    F -->|client re-submits| H[POST /assessments]
+    H --> I[(MongoDB)]
+    I --> J[GET /assessments/id]
+    I --> K[GET /assessments + date filter]
+```
+
+Parsing and persistence are deliberately separate. `POST /assessments/parse`
+performs no writes, so a clinician can review an extraction before anything is
+stored — appropriate when the source is a machine transcription of a clinical
+session rather than a typed record.
+
+### The LangGraph workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> extract_clinical_data
+    extract_clinical_data --> validate_assessment: envelope returned
+    extract_clinical_data --> [*]: LLM or provider error
+    validate_assessment --> confidence_check: schema valid
+    validate_assessment --> [*]: schema violation
+    confidence_check --> [*]
+```
+
+Three nodes, with conditional edges that short-circuit to `END` on failure.
+Errors travel *in the graph state* rather than as exceptions, so a failure at
+any node yields a structured `PipelineResult` the API layer maps onto the right
+status code. The LLM is injected rather than constructed inside the graph, which
+is what makes the whole agent testable without network access.
+
+### Module responsibilities
+
+| Module | Responsibility | Depends on |
+| --- | --- | --- |
+| `api/routes.py` | HTTP contract, status codes, dependency injection | agent, db, transcription |
+| `agent/graph.py` | Orchestration, extraction, confidence gate | models |
+| `agent/prompts.py` | Extraction instructions and confidence rubric | – |
+| `transcription/whisper_service.py` | WAV validation, Whisper invocation | config |
+| `models/assessment.py` | `FirstAssessment` — the frontend contract | – |
+| `models/internal.py` | Envelope, confidence, stored documents | assessment |
+| `db/repository.py` | Persistence, BSON handling, date windows | db/connection |
+| `db/connection.py` | Motor client lifecycle | config |
+| `config.py` | Environment-driven settings | – |
+
+`models/assessment.py` has no internal dependencies by design: it is the
+published contract, and nothing else in the codebase hard-codes its field
+names. Swapping in a revised schema is a single-file change.
+
+### Request lifecycle: `POST /assessments/parse`
+
+| Step | Failure mode | Status |
+| --- | --- | --- |
+| 1. Filename ends `.wav` | wrong extension | 400 |
+| 2. Stream to temp file, check size | exceeds `MAX_UPLOAD_BYTES` | 413 |
+| 3. Validate RIFF/WAVE container | corrupt or empty audio | 400 |
+| 4. Whisper transcription | empty or failed transcription | 400 |
+| 5. LangGraph extraction | provider error, quota, malformed output | 502 |
+| 6. Pydantic validation | schema violation | 502 |
+| 7. Confidence gate | any section below threshold | 422 |
+| 8. Return `FirstAssessment` | – | 200 |
+
+The temp file is removed in a `finally` block regardless of outcome — clinical
+audio should not linger on disk after a request.
+
+### Data flow and boundaries
+
+```
+FirstAssessment          crosses the API boundary  (frontend contract)
+ExtractionEnvelope       agent-internal only        (assessment + confidence)
+PipelineResult           agent -> API only          (result, errors, failures)
+StoredAssessment         API + database             (adds id, created_at)
+```
+
+Confidence data never crosses the API boundary on a success path. A `200`
+carries exactly the seven schema sections and nothing else; a `422` carries the
+confidence detail instead. This separation is what allows "exact schema match"
+and "field-level confidence errors" to both be satisfied without compromise.
+
+
 ## Project structure
 
 ```
@@ -79,7 +170,7 @@ Set `LLM_PROVIDER` and the matching API key. Every other value has a working def
 | --- | --- | --- |
 | `LLM_PROVIDER` | `openai` | `openai`, `google`, or `groq` |
 | `OPENAI_API_KEY` / `GOOGLE_API_KEY` / `GROQ_API_KEY` | – | Key for the chosen provider (**one required**) |
-| `LLM_MODEL` | provider default | Blank uses `gpt-4o-mini` / `gemini-3.5-flash` / `llama-3.3-70b-versatile` |
+| `LLM_MODEL` | provider default | Blank uses `gpt-4o-mini` / `gemini-2.0-flash` / `llama-3.3-70b-versatile` |
 | `LLM_TEMPERATURE` | `0.0` | Deterministic extraction |
 | `WHISPER_MODEL` | `base.en` | Whisper model size |
 | `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
@@ -332,77 +423,68 @@ All four endpoints were exercised against a live MongoDB instance:
 
 ## Known limitations
 
-**Extraction is not deterministic.** `gemini-3.6-flash` uses fixed sampling
-defaults and ignores the `temperature=0.0` setting, so repeated runs over the
-same transcript differ. One observed run dropped `patientAdvice` entirely —
-and scored that section 0.10, so the confidence gate rejected it. This is
-exactly the failure the gate exists to catch: the risk is not that the model
-varies, but that it varies *silently*. In production I would corroborate
-self-reported confidence with token-level logprobs or a second grader model,
-since a model scoring its own work is a soft guarantee.
+**Extraction is not deterministic**
+- `gemini-3.6-flash` uses fixed sampling defaults and ignores the `temperature=0.0` setting
+- Repeated runs over the same transcript differ
+- One observed run dropped `patientAdvice` entirely — and scored that section 0.10, so the confidence gate rejected it
+- This is exactly the failure the gate exists to catch: the risk is not that the model varies, but that it varies *silently*
+- In production I would corroborate self-reported confidence with token-level logprobs or a second grader model, since a model scoring its own work is a soft guarantee
 
-**MongoDB connectivity is environment-sensitive.** All four endpoints were
-verified end to end against a local MongoDB 8.3 instance, including save,
-retrieve by id, list, date filtering, and the 400 and 404 error paths. An
-earlier attempt against MongoDB Atlas failed with
-`SSL: TLSV1_ALERT_INTERNAL_ERROR` on two of three replica-set nodes while the
-third connected normally in 47 ms — consistent with TLS interception on the
-development network rather than a configuration or code fault. The driver is
-configured purely from `MONGODB_URI`, so switching between a local instance and
-Atlas is a single environment-variable change with no code edit; TLS options
-belong in the connection string rather than the client constructor.
+**MongoDB connectivity is environment-sensitive**
+- All four endpoints were verified end to end against a local MongoDB 8.3 instance, including save, retrieve by id, list, date filtering, and the 400 and 404 error paths
+- An earlier attempt against MongoDB Atlas failed with `SSL: TLSV1_ALERT_INTERNAL_ERROR` on two of three replica-set nodes while the third connected normally in 47 ms — consistent with TLS interception on the development network rather than a configuration or code fault
+- The driver is configured purely from `MONGODB_URI`, so switching between a local instance and Atlas is a single environment-variable change with no code edit
+- TLS options belong in the connection string rather than the client constructor
+
+**Provider coverage**
+- The OpenAI, Google and Groq code paths are all implemented with lazy imports
+- Only the Google path was executed end to end for the verified run
 
 
 ## Design decisions
 
-**The LLM provider is swappable.** `LLM_PROVIDER` selects between OpenAI,
-Google Gemini and Groq, and each SDK is imported lazily inside the factory so
-you only install what you use. Extraction depends on the structured-output
-contract (`ExtractionEnvelope`), not on any one vendor — which keeps the
-pipeline running when a provider is rate-limited, out of quota, or simply not
-the cheapest option that week.
+**faster-whisper over openai-whisper**
+- Roughly 4x faster on CPU at equivalent accuracy
+- Reads WAV directly, so no ffmpeg binary on the PATH — one fewer system dependency
+- Model loads lazily on first transcription, so importing the app stays cheap
+- The assignment permits "Whisper (local or API)"; this is the same Whisper weights on a faster runtime
 
-**faster-whisper over openai-whisper.** Roughly 4× faster on CPU at equal
-accuracy, and it reads WAV directly rather than shelling out to ffmpeg — one
-fewer system dependency. The model loads lazily on first transcription so that
-importing the app (which the test suite does) stays cheap.
+**The LLM provider is swappable**
+- `LLM_PROVIDER` selects OpenAI, Google Gemini or Groq
+- Each SDK is imported lazily inside the factory, so you install only what you use
+- Extraction depends on the structured-output contract (`ExtractionEnvelope`), not on any vendor
+- Keeps the pipeline running when a provider is rate-limited, out of quota, or no longer the right choice
 
-**Confidence lives outside `FirstAssessment`.** The schema must match the
-frontend exactly, so quality metadata cannot ride inside it. The LLM instead
-returns an `ExtractionEnvelope` — the assessment plus a `field_confidence` map
-keyed by the seven camelCase section names. The gate reads the envelope; the
-API returns only the clean assessment. A `200` response therefore never carries
-confidence data, and the `422` carries all of it.
+**Confidence lives outside `FirstAssessment`**
+- The schema must match the frontend exactly, so quality metadata cannot ride inside it
+- The LLM returns an `ExtractionEnvelope`: the assessment plus a `field_confidence` map keyed by the seven camelCase section names
+- The gate reads the envelope; the API returns only the clean assessment
+- A `200` therefore never carries confidence data; a `422` carries all of it
+- A section the model never scored is treated as `0.0`, not as a pass — silence from the model is not evidence of quality
 
-A section the model never scored is treated as `0.0`, not as a pass. This is
-deliberate: silence from the model is not evidence of quality, and defaulting
-the other way would let an empty extraction through the gate.
+**Schema conformance is structural, not conventional**
+- "Arrays stay arrays" and "strings are never null" are enforced by Pydantic `BeforeValidator`s on the field types, not by prompt instructions
+- If the LLM returns `null` for a string or a bare object where an array belongs, the model coerces it rather than emitting non-conforming JSON
+- `alias_generator=to_camel` with `serialize_by_alias=True` keeps Python snake_case while every serialisation path emits camelCase
+- No caller can produce snake_case by forgetting `by_alias=True`
 
-**Schema conformance is structural, not conventional.** The two rules from the
-assignment — arrays stay arrays, strings are never null — are enforced by
-Pydantic `BeforeValidator`s on the field types. If the LLM returns `null` for a
-string or a bare object where an array belongs, the model coerces it rather than
-emitting non-conforming JSON. `alias_generator=to_camel` with
-`serialize_by_alias=True` means Python stays snake_case while every serialisation
-path emits camelCase; no caller can produce snake_case by forgetting
-`by_alias=True`.
+**LangGraph shape: three nodes, conditional edges**
+- `extract_clinical_data` → `validate_assessment` → `confidence_check`, short-circuiting to `END` on error
+- Errors travel in the graph state rather than as exceptions, so any node failure yields a structured result the API maps onto the right status code
+- The LLM is injected rather than constructed inside the graph — this is what makes the agent testable without network access
 
-**LangGraph shape.** Three nodes, `extract_clinical_data → validate_assessment →
-confidence_check`, with conditional edges that short-circuit to `END` on error.
-Errors travel in the state rather than as exceptions, so a failure at any node
-produces a structured result the API can map onto the right status code. The LLM
-is injected rather than constructed inside the graph, which is what makes the
-whole agent testable without network access.
+**Repository pattern for MongoDB**
+- All BSON and `ObjectId` handling is confined to `db/repository.py`
+- Routes deal only in Pydantic models
+- Tests inject a fake collection, so the suite runs without a database
+- Connection security is configured from `MONGODB_URI` alone, never hard-coded in the client constructor
 
-**Repository pattern for Mongo.** All BSON and `ObjectId` handling is confined
-to `db/repository.py`; routes deal only in Pydantic models. Tests inject a fake
-collection, so the suite runs without a database.
+**Prompt guards against hallucination**
+- Extract only what the transcript supports; prefer omission over guessing on garbled ASR output
+- Keep patient-reported material (subjective sections) separate from clinician-measured material (objective sections) — the distinction the schema is built around
+- Use empty strings and empty arrays, never null, when information is absent
+- Score a section low when the session did not cover it, so the gate can tell "not discussed" from "confidently captured"
 
-**Prompt guards against hallucination.** The prompt directs the model to extract
-only what the transcript supports, to prefer omission over guessing on garbled
-ASR output, and to keep patient-reported material (subjective sections) separate
-from clinician-measured material (objective sections) — the distinction the
-schema itself is built around.
 
 ---
 
