@@ -11,7 +11,7 @@ from fastapi import (
     Query,
     UploadFile,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database.mongodb import MongoDB
 from app.graph.assessment_graph import build_assessment_graph
@@ -24,6 +24,11 @@ router = APIRouter(
     prefix="/assessments",
     tags=["Assessments"],
 )
+
+
+# ============================================================
+# Response models
+# ============================================================
 
 
 class AssessmentCreateResponse(BaseModel):
@@ -40,8 +45,37 @@ class ConfidenceIssueResponse(BaseModel):
     reason: str
 
 
+class LowConfidenceDetail(BaseModel):
+    error: str
+    threshold: float
+    issues: list[ConfidenceIssueResponse]
+
+
+class LowConfidenceResponse(BaseModel):
+    detail: LowConfidenceDetail
+
+
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class StoredAssessment(FirstAssessment):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+    )
+
+    assessment_id: str = Field(
+        default="",
+        alias="_id",
+    )
+
+    createdAt: Optional[datetime] = None
+
+
+# ============================================================
+# Confidence handling
+# ============================================================
 
 
 def build_low_confidence_error(confidence) -> dict:
@@ -82,7 +116,6 @@ def build_low_confidence_error(confidence) -> dict:
 
 
 def validate_confidence_or_raise(confidence) -> None:
-
     overall_failure = (
         confidence.overall_confidence
         < CONFIDENCE_THRESHOLD
@@ -102,6 +135,11 @@ def validate_confidence_or_raise(confidence) -> None:
         )
 
 
+# ============================================================
+# POST /assessments/parse
+# ============================================================
+
+
 @router.post(
     "/parse",
     response_model=FirstAssessment,
@@ -111,6 +149,7 @@ def validate_confidence_or_raise(confidence) -> None:
             "description": "Invalid WAV upload.",
         },
         422: {
+            "model": LowConfidenceResponse,
             "description": (
                 "Clinical extraction failed the "
                 "configured confidence threshold."
@@ -214,7 +253,8 @@ async def parse_assessment(
 
     except Exception as exc:
         print(
-            f"Assessment parsing failed: {type(exc).__name__}: {exc}"
+            f"Assessment parsing failed: "
+            f"{type(exc).__name__}: {exc}"
         )
 
         raise HTTPException(
@@ -228,6 +268,11 @@ async def parse_assessment(
                 os.remove(temp_path)
             except OSError:
                 pass
+
+
+# ============================================================
+# POST /assessments
+# ============================================================
 
 
 @router.post(
@@ -263,9 +308,14 @@ async def create_assessment(
         ) from exc
 
 
+# ============================================================
+# GET /assessments
+# ============================================================
+
+
 @router.get(
     "",
-    response_model=list[dict],
+    response_model=list[StoredAssessment],
     responses={
         400: {
             "model": ErrorResponse,
@@ -285,7 +335,6 @@ async def list_assessments(
         default=None
     ),
 ):
-
     if date_from and date_to and date_from > date_to:
         raise HTTPException(
             status_code=400,
@@ -298,7 +347,6 @@ async def list_assessments(
         query = {}
 
         if date_from or date_to:
-
             created_at_query = {}
 
             if date_from:
@@ -341,9 +389,14 @@ async def list_assessments(
         ) from exc
 
 
+# ============================================================
+# GET /assessments/{assessment_id}
+# ============================================================
+
+
 @router.get(
     "/{assessment_id}",
-    response_model=dict,
+    response_model=StoredAssessment,
     responses={
         400: {
             "model": ErrorResponse,
@@ -362,7 +415,6 @@ async def list_assessments(
 async def get_assessment(
     assessment_id: str,
 ):
-
     if not ObjectId.is_valid(
         assessment_id
     ):

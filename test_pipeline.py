@@ -74,6 +74,12 @@ def main():
             indent=2,
         )
     )
+    print("\n--- FIRST ASSESSMENT BEFORE CONFIDENCE REJECTION ---\n")
+    print(
+       assessment.model_dump_json(
+          indent=2,
+    )
+)
 
     low_confidence_issues = [
         issue

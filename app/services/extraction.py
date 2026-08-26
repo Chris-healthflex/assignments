@@ -162,12 +162,8 @@ def normalize_subjective_assessments(
         item = item.model_copy(deep=True)
 
         item.testName = clean_string(item.testName)
-        item.conclusion = clean_string(item.conclusion)
 
-        key = (
-            normalize_test_name(item.testName),
-            item.conclusion.lower(),
-        )
+        key = normalize_test_name(item.testName)
 
         if key in seen:
             continue
@@ -205,6 +201,7 @@ def normalize_objective_assessment(
                     item.comments,
                     side_value,
                 )
+
                 setattr(item, side, "")
 
         if item.value.lower() in QUALITATIVE_VALUES:
@@ -212,6 +209,7 @@ def normalize_objective_assessment(
                 item.comments,
                 item.value,
             )
+
             item.value = ""
 
         # Bilateral value.
@@ -292,7 +290,6 @@ def normalize_all_strings(
 
     for item in assessment.subjectiveAssessments:
         item.testName = clean_string(item.testName)
-        item.conclusion = clean_string(item.conclusion)
 
     for item in assessment.objectiveAssessment.tests:
         item.testName = clean_string(item.testName)
@@ -400,7 +397,18 @@ SUBJECTIVE ASSESSMENTS
 Include patient-reported symptoms, complaints and functional
 limitations.
 
-Group closely related information.
+Use one item for each distinct subjective assessment.
+
+The only field in each subjective assessment is:
+
+testName
+
+Use a concise label supported by the transcript, such as:
+- pain
+- functional limitations
+- difficulty walking
+
+Do not add a conclusion field.
 
 Do not put examination findings here.
 
@@ -560,11 +568,6 @@ def collect_assessment_strings(
             item.testName,
         )
 
-        yield (
-            f"subjectiveAssessments[{index}].conclusion",
-            item.conclusion,
-        )
-
     for index, item in enumerate(
         assessment.objectiveAssessment.tests
     ):
@@ -718,13 +721,11 @@ def deterministic_confidence_issues(
     for index, item in enumerate(
         assessment.objectiveAssessment.tests
     ):
-
         for field_name, value in (
             ("value", item.value),
             ("left", item.left),
             ("right", item.right),
         ):
-
             if not value:
                 continue
 
@@ -757,7 +758,6 @@ def deterministic_confidence_issues(
     )
 
     for value in bilateral_values:
-
         matched = any(
             item.unitName.lower() == "degrees"
             and item.left == value
@@ -865,8 +865,8 @@ If a test says:
 
 "left hip extension restricted"
 
-and the assessment places "restricted" in a related hip range-of-motion
-test's comments while leaving the numerical side field empty, DO NOT
+and the assessment represents "restricted" in a related test's
+comments while leaving the numerical side fields empty, DO NOT
 flag that as low confidence.
 
 If a field is intentionally empty because the transcript gives no
@@ -916,7 +916,7 @@ Use the current schema:
 
 clinicalDetails.duration
 
-subjectiveAssessments[0].conclusion
+subjectiveAssessments[0].testName
 
 objectiveAssessment.tests[0].right
 

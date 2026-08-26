@@ -34,7 +34,6 @@ class ClinicalDetails(AssessmentBaseModel):
 
 class SubjectiveAssessment(AssessmentBaseModel):
     testName: str = ""
-    conclusion: str = ""
 
 
 class ObjectiveAssessmentTest(AssessmentBaseModel):
