@@ -1,0 +1,31 @@
+from app.models.schema import (
+    FirstAssessment,
+    ClinicalDetails,
+    SubjectiveAssessment,
+    ObjectiveTest,
+    ObjectiveAssessment,
+    SubjectiveGoal,
+    ObjectiveGoal,
+    Recommendation,
+    PatientAdvice,
+    ExtractionConfidence,
+    ExtractionResponse,
+    AssessmentSaveResponse,
+    AssessmentListResponse,
+)
+
+__all__ = [
+    "FirstAssessment",
+    "ClinicalDetails",
+    "SubjectiveAssessment",
+    "ObjectiveTest",
+    "ObjectiveAssessment",
+    "SubjectiveGoal",
+    "ObjectiveGoal",
+    "Recommendation",
+    "PatientAdvice",
+    "ExtractionConfidence",
+    "ExtractionResponse",
+    "AssessmentSaveResponse",
+    "AssessmentListResponse",
+]
