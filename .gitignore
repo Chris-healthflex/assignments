@@ -1,0 +1,44 @@
+# Environments & Secrets
+.env
+.env.*
+!.env.example
+venv/
+env/
+.venv/
+ENV/
+
+# Python Bytecode & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Distribution & Build
+build/
+dist/
+*.egg-info/
+
+# Temporary Audio & Pipeline Data
+*.wav
+tmp/
+temp/
+
+# IDE & Editor Configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
