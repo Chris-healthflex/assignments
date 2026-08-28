@@ -1,0 +1,110 @@
+{
+  "assessment": {
+    "clinicalDetails": {
+      "clinicalHistory": "Patient was involved in a road traffic accident approximately 8 months ago resulting in a left tibial condyle fracture, treated with open reduction and internal fixation (ORIF) with plates and screws, followed by 4-6 weeks of non-weight-bearing status and subsequent progressive loading. Despite 8 months since injury, the patient has not returned to full functional activity.",
+      "chiefComplaint": "Left knee pain with difficulty performing functional activities and difficulty walking, along with back pain during prolonged walking.",
+      "duration": "8 months post-injury / post-operative"
+    },
+    "subjectiveAssessments": [
+      {
+        "testName": "Pain assessment",
+        "conclusion": "Mild pain with mild irritability, particularly during prolonged walking and standing"
+      }
+    ],
+    "objectiveAssessment": {
+      "tests": [
+        {
+          "testName": "Inspection",
+          "unitName": "",
+          "value": "",
+          "left": "",
+          "right": "",
+          "comments": "Surgical scar noted on the medial aspect of the knee, reported as tender (transcript unclear in this segment)"
+        },
+        {
+          "testName": "Knee flexion / extension (qualitative)",
+          "unitName": "",
+          "value": "",
+          "left": "Painful on overpressure; restricted extension; swelling noted",
+          "right": "",
+          "comments": "Transcript garbled in this segment (ASR errors); qualitative description only"
+        },
+        {
+          "testName": "Hip range of motion",
+          "unitName": "",
+          "value": "",
+          "left": "Extension restricted",
+          "right": "Generally full/free",
+          "comments": "Hip ROM described as generally full/free bilaterally except restricted left hip extension"
+        },
+        {
+          "testName": "Knee flexion",
+          "unitName": "degrees",
+          "value": "",
+          "left": "124",
+          "right": "130",
+          "comments": ""
+        },
+        {
+          "testName": "Knee extension deficit",
+          "unitName": "degrees",
+          "value": "",
+          "left": "20",
+          "right": "5",
+          "comments": ""
+        },
+        {
+          "testName": "Hip rotation",
+          "unitName": "degrees",
+          "value": "",
+          "left": "",
+          "right": "",
+          "comments": "Transcript too garbled to confidently attribute values to left/right or to internal/external rotation. Raw ASR fragment: 'hip and ten and rotation of forty five degrees ... eczema rotation of sixty degrees ... affliction of full point five degrees on the left compared with twelve degrees on the right'. Numbers mentioned (45, 60, ~X.5, 12) not extracted as structured values to avoid hallucinating attribution."
+        }
+      ]
+    },
+    "subjectiveGoals": [
+      {
+        "goalDetails": "Restore knee extension",
+        "targetDate": ""
+      },
+      {
+        "goalDetails": "Improve knee stability and single-leg stability",
+        "targetDate": ""
+      },
+      {
+        "goalDetails": "Strengthen quadriceps and functional lower-limb musculature",
+        "targetDate": ""
+      },
+      {
+        "goalDetails": "Improve ankle mobility",
+        "targetDate": ""
+      },
+      {
+        "goalDetails": "Activate posterior chain musculature",
+        "targetDate": ""
+      }
+    ],
+    "objectiveGoals": [],
+    "recommendation": [
+      {
+        "sessionType": "Physiotherapy",
+        "sessionFrequency": "Once weekly"
+      }
+    ],
+    "patientAdvice": {
+      "adviceDetails": ""
+    }
+  },
+  "overall_confidence": 0.35,
+  "extraction_flags": [
+    "objectiveAssessment.tests[0].comments",
+    "objectiveAssessment.tests[1]",
+    "objectiveAssessment.tests[5]",
+    "recommendation[0].sessionFrequency",
+    "transcript (low-confidence ASR engine used \u2014 pocketsphiynx fallback, not Whisper)"
+  ],
+  "transcript": "patients presenting with the left knee pain the difficulty performing functional activities and difficulty walking along with them going back pain during prolonged walking following century the patient was apparently no mode eight months ago when she was involved in a road traffic accident resulting in a left to be all condo fraction of ocean be sealed head open reduction and internal fixation with the phones i adopted him and kenny on followed by four to six weeks of non weight bearing and subsequent progress of loading despite eight months having cost the patient has not returned to full functional activity and presenting full flood the management she reports madrid paying with mild irritability particularly during prolonged walking and standing which is relieved addressed on assessment the heel of such a close call was noted on the medial aspect of the knee which is treated and painful knee flexion on over pressure mistreated extension and swimming the demo the t was good while hip range of motion was generally food being free although left hip extension was restricted objective measurements showed left knee flexion of one hundred twenty four degrees compared with one thirty degrees on the right left me extension of twenty degrees compared with me gag five degrees on the right hip and ten and rotation of forty five degrees by naturally had eczema rotation of sixty degrees by naturally and and hotels affliction of full point five degrees on the left compared with twelve degrees on the right the provision of diagnosis was a left to be all condo fraction status post operative eight months' physio therapy was recommended once weekly full full sessions with emphasis on restoring extension improving the stability and single leg stability strengthening the quadriceps and functional know when the musculature improving ankle mobility and activating the posterior chain",
+  "source_audio_filename": "clinical_assessment.wav",
+  "transcription_engine": "pocketsphinx-en-us"
+}
