@@ -1,0 +1,30 @@
+# Secrets - never commit
+.env
+*.pem
+*.key
+
+# Clinical audio / PHI - never commit
+*.wav
+tests/fixtures/*.wav
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Whisper model cache
+.cache/
+/models/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
