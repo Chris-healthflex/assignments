@@ -1,0 +1,104 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "Patient was involved in a road traffic accident eight months ago resulting in a left tibial condylar fracture and an avulsion ACL tear. Open reduction and internal fixation was performed, followed by four to six weeks of non-weight-bearing and progressive loading.",
+    "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking",
+    "duration": "8 months"
+  },
+  "subjectiveAssessments": [
+    {
+      "testName": "Pain and symptom irritability",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing, relieved with rest"
+    }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Knee flexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": "restricted and painful on overpressure, with swelling"
+      },
+      {
+        "testName": "Knee extension",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "-5",
+        "comments": "restricted extension"
+      },
+      {
+        "testName": "Hip internal rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "45",
+        "right": "45",
+        "comments": "full and pain free"
+      },
+      {
+        "testName": "Hip external rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "60",
+        "right": "60",
+        "comments": "full and pain free"
+      },
+      {
+        "testName": "Ankle dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": "ankle dorsiflexion"
+      }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [
+    {
+      "goalName": "Restoring extension",
+      "goalCategory": "Range of Motion",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improving stability and single leg stability",
+      "goalCategory": "Stability",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Strengthening the quadriceps and functional lower limb musculature",
+      "goalCategory": "Strength",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improving ankle mobility",
+      "goalCategory": "Mobility",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Activating the posterior chain",
+      "goalCategory": "Activation",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    }
+  ],
+  "recommendation": [
+    {
+      "sessionType": "Physiotherapy",
+      "sessionFrequency": "Once weekly for four sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": "Physiotherapy recommended once weekly for four sessions with specific rehabilitation focus areas."
+  }
+}

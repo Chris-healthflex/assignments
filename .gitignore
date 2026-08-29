@@ -1,0 +1,42 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.Python
+build/
+dist/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Env / secrets ---
+.env
+.env.local
+
+# --- Testing / linting caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Audio input files (large, and shouldn't be committed) ---
+*.wav
+!data/sample_transcript.txt
+
+# --- Whisper model cache (if downloaded into the repo dir) ---
+.cache/
