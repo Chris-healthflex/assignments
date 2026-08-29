@@ -1,11 +1,3 @@
-"""
-Ensures the sample output committed at data/sample_output.json (referenced
-in the README as a real, verified pipeline run) always validates against
-the live FirstAssessment schema. If the schema changes in a way that would
-break this sample, this test fails loudly instead of the README silently
-going stale.
-"""
-
 import json
 from pathlib import Path
 

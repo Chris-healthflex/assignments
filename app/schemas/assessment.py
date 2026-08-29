@@ -1,17 +1,3 @@
-"""
-FirstAssessment schema — the exact production contract.
-
-Rules enforced (per assignment spec):
-- No extra fields (Pydantic v2 `model_config = ConfigDict(extra="forbid")`)
-- No renamed fields (field names match exactly: chiefComplaint, not chief_complaint)
-- Array fields are always arrays, even with 0 or 1 items
-- All string fields are strings, never null (missing info -> empty string "",
-  never `None`). This keeps the schema type-stable for the frontend while the
-  confidence/hallucination logic (see agents/assessment_graph.py) decides
-  *before* this model is even constructed whether a field is trustworthy
-  enough to include at all.
-"""
-
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict

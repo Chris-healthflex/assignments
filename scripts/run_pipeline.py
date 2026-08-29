@@ -1,13 +1,3 @@
-"""
-Runs the complete AI pipeline (Whisper -> LangGraph -> FirstAssessment) on a
-WAV file, without touching FastAPI or MongoDB, so a reviewer can verify the
-core logic with a single command:
-
-    python scripts/run_pipeline.py clinical_assessment.wav
-
-Requires OPENAI_API_KEY and GROQ_API_KEY to be set (via .env or the shell).
-"""
-
 from __future__ import annotations
 
 import json
