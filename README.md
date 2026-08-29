@@ -8,16 +8,45 @@ Built using FastAPI, LangGraph, and Whisper, the pipeline extracts data into a s
 
 ```mermaid
 flowchart TD
-    A[Client] -->|multipart WAV| B[POST /assessments/parse]
-    B --> C[WhisperTranscriber]
-    C -->|transcript| D[LangGraph Agent]
-    D -->|ExtractionEnvelope| E[Confidence Gate]
-    E -->|all sections pass| F[FirstAssessment JSON - 200 OK]
-    E -->|any section below threshold| G[422 + field-level detail]
-    F -->|client re-submits| H[POST /assessments]
-    H --> I[(MongoDB)]
-    I --> J[GET /assessments/id]
-    I --> K[GET /assessments + pagination]
+    subgraph Client [Client Application]
+        UI[Clinician Dashboard]
+    end
+
+    subgraph API [FastAPI Application]
+        POST_PARSE[POST /assessments/parse]
+        POST_SAVE[POST /assessments]
+        GET_API[GET /assessments]
+    end
+
+    subgraph ML_Pipeline [AI Extraction Pipeline]
+        Whisper((Whisper transcriber))
+        Graph((LangGraph Agent))
+        Gate{Confidence Gate}
+    end
+
+    subgraph Database [Persistence Layer]
+        Mongo[(MongoDB)]
+    end
+
+    UI -->|1. Upload Audio| POST_PARSE
+    POST_PARSE --> Whisper
+    Whisper -->|2. Raw Transcript| Graph
+    Graph -->|3. Extracted JSON + Scores| Gate
+    
+    Gate -- "All scores >= 0.70" --> Success[200 OK: FirstAssessment JSON]
+    Gate -- "Any score < 0.70" --> Error[422: Missing Sections Error]
+    
+    Success -.->|4. User Reviews & Submits| POST_SAVE
+    Error -.->|User Fixes Missing Info| POST_SAVE
+
+    POST_SAVE -->|Persists JSON| Mongo
+    GET_API -->|Keyset Pagination| Mongo
+
+    %% Aesthetics
+    classDef ai fill:#D2E3FC,stroke:#174EA6,stroke-width:2px,color:#174EA6;
+    class Whisper,Graph ai;
+    classDef db fill:#CEEAD6,stroke:#0D652D,stroke-width:2px,color:#0D652D;
+    class Mongo db;
 ```
 
 ---
