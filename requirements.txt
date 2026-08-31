@@ -1,0 +1,15 @@
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+pydantic==2.13.5
+pydantic-settings==2.15.0
+motor==3.7.1
+langchain-core==1.6.1
+langchain-google-genai==4.3.7
+langgraph==1.2.11
+numpy==2.4.6
+# Only needed when WHISPER_BACKEND=local. Installs torch, so skip it if you
+# transcribe through the OpenAI API instead.
+openai-whisper==20250625
+# Only needed when WHISPER_BACKEND=openai.
+openai==3.6.0
