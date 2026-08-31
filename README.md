@@ -2,7 +2,7 @@
 
 A backend pipeline that converts a clinician-patient WAV recording into a structured `FirstAssessment` JSON document.
 
-The system combines local speech-to-text transcription, structured LLM extraction, schema validation, confidence scoring, and MongoDB persistence behind a FastAPI API.
+The system combines local speech-to-text transcription, structured JSON extraction, schema validation, confidence scoring, and MongoDB persistence behind a FastAPI API.
 
 ## Architecture
 
@@ -12,12 +12,12 @@ WAV audio
    ▼
 Whisper
    │
-   │ transcript + transcription metadata
+   │ transcript
    ▼
 LangGraph extraction pipeline
    │
    ├── Extract entities
-   │      └── Ollama structured output
+   │      └── Ollama + Qwen2.5 7B
    │
    ├── Validate schema
    │      └── Pydantic v2
@@ -51,32 +51,34 @@ A WAV recording is transcribed locally using Whisper. The resulting transcript i
 
 ### Structured extraction
 
-The extraction model uses Ollama with LangChain structured output targeting the Pydantic `FirstAssessment` model.
+The extraction model runs locally through Ollama using **Qwen2.5 7B**.
 
-This keeps the extracted result aligned with the application's schema instead of relying on free-form text generation.
+The extraction prompt defines the expected `FirstAssessment` JSON structure and instructs the model to extract only information supported by the transcript.
+
+The resulting JSON is then parsed and validated against the application's Pydantic schema.
 
 ### Schema validation
 
-The `FirstAssessment` model uses Pydantic validation with strict field handling. Unexpected fields are rejected before the assessment is returned or persisted.
+The `FirstAssessment` model uses Pydantic validation with strict field handling. Unexpected fields are rejected before the assessment is accepted by the application.
 
 ### Confidence gating
 
 Extracted values are checked against the source transcript using deterministic lexical grounding.
 
-Fields that cannot be sufficiently grounded in the transcript are flagged as low confidence. Assessments that do not meet the configured confidence threshold are returned for review rather than being persisted automatically.
+Fields that cannot be sufficiently grounded in the transcript are flagged as low confidence. Assessments that do not meet the configured confidence threshold are returned for review rather than being automatically accepted.
 
 ### Validation and repair
 
-If an extraction does not satisfy the expected schema, the pipeline provides the validation error to the extraction step and performs one repair attempt.
+If an extraction does not satisfy the expected schema, the validation error is provided to the extraction step and one repair attempt is performed.
 
 The retry is intentionally limited to prevent uncontrolled loops.
 
 ### Local processing
 
-Both transcription and extraction can run locally:
+The core pipeline runs locally:
 
 * Whisper for speech recognition
-* Ollama for structured extraction
+* Ollama with Qwen2.5 7B for structured extraction
 * MongoDB for persistence
 
 This keeps the development workflow self-contained and avoids requiring an external inference API.
@@ -116,7 +118,7 @@ project/
 * Python 3.11+
 * MongoDB
 * Ollama
-* A tool-calling capable Ollama model
+* Qwen2.5 7B
 * Whisper dependencies
 
 Python dependencies are listed in `requirements.txt`.
@@ -150,15 +152,15 @@ The default configuration uses:
 MongoDB: localhost:27017
 Ollama: localhost:11434
 Whisper model: base
-Extraction model: llama3.1:8b
+Extraction model: qwen2.5:7b
 ```
 
 ### 4. Start Ollama
 
-Pull a supported model:
+Ensure the Qwen2.5 7B model is available:
 
 ```bash
-ollama pull llama3.1:8b
+ollama pull qwen2.5:7b
 ```
 
 Start the Ollama service if it is not already running:
@@ -273,6 +275,12 @@ The current test suite includes schema-level checks for:
 
 The tests do not require a running LLM, audio model, database, or external API.
 
+The current test run passes both tests:
+
+```text
+2 passed
+```
+
 ## Confidence Configuration
 
 Confidence thresholds can be configured through `.env`:
@@ -297,7 +305,7 @@ WHISPER_MODEL=base
 WHISPER_DEVICE=cpu
 
 OLLAMA_BASE_URL=http://localhost:11434
-EXTRACTION_MODEL=llama3.1:8b
+EXTRACTION_MODEL=qwen2.5:7b
 
 MIN_FIELD_CONFIDENCE=0.55
 MIN_OVERALL_CONFIDENCE=0.6
