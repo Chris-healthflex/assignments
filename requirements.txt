@@ -7,4 +7,4 @@ langchain
 langchain-openai
 pymongo
 python-multipart
-python-dotenv
+python-dotenvlangchain-groq

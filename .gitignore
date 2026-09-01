@@ -4,6 +4,9 @@ venv/
 
 # Environment variables
 .env
+data/tmp/
+*.wav
+!data/clinical_assessment.wav
 
 # Python cache
 __pycache__/

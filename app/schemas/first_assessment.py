@@ -56,3 +56,7 @@ class FirstAssessment(BaseModel):
     objectiveGoals: List[ObjectiveGoal] = Field(default_factory=list)
     recommendation: List[Recommendation] = Field(default_factory=list)
     patientAdvice: PatientAdvice
+    flaggedFields: List[str] = Field(
+        default_factory=list,
+        description="Fields that could not be confidently extracted from the transcript and were left empty.",
+    )
