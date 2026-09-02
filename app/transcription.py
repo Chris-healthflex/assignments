@@ -23,12 +23,19 @@ log = logging.getLogger(__name__)
 WHISPER_SR = 16_000
 
 
+class AudioDecodeError(ValueError):
+    """Raised when the uploaded bytes are not a decodable WAV stream."""
+
+
 def _load_wav_16k_mono(wav_bytes: bytes) -> np.ndarray:
     import soundfile as sf
     from scipy.signal import resample_poly
     from math import gcd
 
-    audio, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32", always_2d=True)
+    try:
+        audio, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32", always_2d=True)
+    except Exception as e:
+        raise AudioDecodeError(str(e)) from e
     audio = audio.mean(axis=1)  # downmix to mono
     if sr != WHISPER_SR:
         g = gcd(sr, WHISPER_SR)

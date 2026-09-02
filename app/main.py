@@ -30,7 +30,7 @@ from . import db
 from .agent import run_extraction
 from .config import settings
 from .schemas import FirstAssessment
-from .transcription import transcribe
+from .transcription import AudioDecodeError, transcribe
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("stance")
@@ -87,8 +87,14 @@ async def parse_assessment(
 
     try:
         transcript = await run_in_threadpool(transcribe, wav_bytes)
+    except AudioDecodeError:
+        # The upload is named .wav but is not decodable audio -> client error,
+        # not a server fault. Deliberately does not echo the decoder's message,
+        # which contains buffer reprs rather than anything actionable.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="File is not a readable WAV audio stream")
     except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Transcription failed: {e}")
+        log.exception("Transcription failed")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Transcription failed: {type(e).__name__}")
     if not transcript.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=[{"loc": ["transcript"], "msg": "No speech detected in audio", "type": "empty_transcript"}])
 
