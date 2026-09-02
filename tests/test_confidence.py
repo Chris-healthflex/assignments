@@ -79,16 +79,30 @@ def test_grounding_flags_hallucinated_target_date(sample_clinical_transcript: st
     assert any("2026-12-31" in item["value"] for item in result.uncertain_fields)
 
 
-def test_empty_target_dates_are_valid(sample_clinical_transcript: str):
-    """Test that leaving unmentioned target dates empty does not trigger uncertainty."""
+def test_empty_target_dates_and_values_are_valid(sample_clinical_transcript: str):
+    """Test that leaving unmentioned target dates and goal values empty does not trigger uncertainty."""
     assessment = FirstAssessment(
-        subjectiveGoals=[
-            SubjectiveGoal(goalDetails="Improve walking tolerance", targetDate="")
-        ],
+        subjectiveGoals=[],
         objectiveGoals=[
-            ObjectiveGoal(goalName="Knee Extension", value="0", unitName="degrees", targetDate="")
+            ObjectiveGoal(goalName="Knee Extension and stability", value="", unitName="", targetDate="")
         ],
     )
 
     result = validate_grounding(sample_clinical_transcript, assessment)
     assert not any("targetDate" in item.get("field", "") for item in result.uncertain_fields)
+    assert not any("value" in item.get("field", "") for item in result.uncertain_fields)
+
+
+def test_grounding_flags_hallucinated_goal_value(sample_clinical_transcript: str):
+    """Test that an invented objective goal target number not in transcript is flagged."""
+    assessment = FirstAssessment(
+        objectiveGoals=[
+            # '0' is not spoken in the transcript as a goal target
+            ObjectiveGoal(goalName="Knee Extension", value="0", unitName="degrees", targetDate="")
+        ]
+    )
+
+    result = validate_grounding(sample_clinical_transcript, assessment)
+    assert result.is_grounded is False
+    assert len(result.uncertain_fields) >= 1
+    assert any("objectiveGoals[0].value" == item.get("field") for item in result.uncertain_fields)

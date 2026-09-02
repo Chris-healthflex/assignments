@@ -22,18 +22,14 @@ class GroundingCheckResult:
 
 
 def _contains_number(text: str, number_str: str) -> bool:
-    """Check if a numeric value (e.g. '124', '4.5', '-5', '20') appears in the transcript text."""
+    """Check if a standalone numeric value (e.g. '124', '4.5', '-5', '20', '0') appears in the transcript text."""
     if not number_str or not number_str.strip():
         return True
 
     clean_num = number_str.strip().lower()
-    # Direct substring check
-    if clean_num in text.lower():
-        return True
-
-    # Word-boundary regex check for integer or float
-    pattern = re.escape(clean_num)
-    if re.search(r"(?:\b|-)" + pattern + r"(?:\b|°|deg)", text, re.IGNORECASE):
+    # Match as a standalone number with negative sign support, ensuring no adjacent digits/decimals
+    pattern = r"(?<![0-9.])" + re.escape(clean_num) + r"(?![0-9.])"
+    if re.search(pattern, text, re.IGNORECASE):
         return True
 
     return False
@@ -104,8 +100,16 @@ def validate_grounding(
             if matched:
                 result.evidence[field_name] = "; ".join(sub.conclusion)
 
-    # 4. Check for unmentioned dates (Dates should not be hallucinated if no calendar date in transcript)
+    # 4. Validate Goals and Dates Grounding
     for idx, goal in enumerate(assessment.subjectiveGoals):
+        if goal.goalDetails and goal.goalDetails.strip():
+            goal_words = [w for w in re.split(r"\W+", goal.goalDetails.lower()) if len(w) > 3]
+            if goal_words and not any(w in normalized_transcript for w in goal_words):
+                result.uncertain_fields.append({
+                    "field": f"subjectiveGoals[{idx}].goalDetails",
+                    "value": goal.goalDetails,
+                    "reason": "Subjective goal details do not match any transcript statements.",
+                })
         if goal.targetDate and goal.targetDate.strip():
             if not _contains_number(normalized_transcript, goal.targetDate):
                 result.uncertain_fields.append({
@@ -115,6 +119,14 @@ def validate_grounding(
                 })
 
     for idx, o_goal in enumerate(assessment.objectiveGoals):
+        if o_goal.value and o_goal.value.strip():
+            if not _contains_number(normalized_transcript, o_goal.value):
+                result.is_grounded = False
+                result.uncertain_fields.append({
+                    "field": f"objectiveGoals[{idx}].value",
+                    "value": o_goal.value,
+                    "reason": f"Objective goal target value '{o_goal.value}' is not supported or spoken in the transcript.",
+                })
         if o_goal.targetDate and o_goal.targetDate.strip():
             if not _contains_number(normalized_transcript, o_goal.targetDate):
                 result.uncertain_fields.append({
@@ -122,5 +134,16 @@ def validate_grounding(
                     "value": o_goal.targetDate,
                     "reason": f"Target date '{o_goal.targetDate}' was not explicitly mentioned in transcript.",
                 })
+
+    # 5. Validate Patient Advice Grounding
+    if assessment.patientAdvice and assessment.patientAdvice.adviceDetails:
+        adv = assessment.patientAdvice.adviceDetails
+        adv_words = [w for w in re.split(r"\W+", adv.lower()) if len(w) > 3]
+        if adv_words and not any(w in normalized_transcript for w in adv_words):
+            result.uncertain_fields.append({
+                "field": "patientAdvice.adviceDetails",
+                "value": adv,
+                "reason": "Patient advice details are not supported by transcript.",
+            })
 
     return result

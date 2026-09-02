@@ -54,7 +54,7 @@ class WhisperTranscriber:
             model: Optional Whisper model override (e.g. 'whisper-1').
             client: Optional pre-configured OpenAI client (useful for unit testing).
         """
-        self._api_key = api_key or settings.OPENAI_API_KEY
+        self._api_key = api_key if api_key is not None else settings.OPENAI_API_KEY
         self.model = model or settings.WHISPER_MODEL
         self._client = client
 

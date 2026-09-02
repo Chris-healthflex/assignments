@@ -50,7 +50,7 @@ class ClinicalExtractionAgent:
             model: Optional extraction model name override.
             llm: Optional pre-configured LangChain LLM instance (useful for testing).
         """
-        self._api_key = api_key or settings.OPENAI_API_KEY
+        self._api_key = api_key if api_key is not None else settings.OPENAI_API_KEY
         self.model = model or settings.EXTRACTION_MODEL
         self._llm = llm
         self.graph = self._build_graph()

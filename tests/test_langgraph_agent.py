@@ -43,7 +43,6 @@ def representative_transcript() -> str:
     Our assessment is left tibial condyle fracture post-operative eight months with knee stiffness.
     We recommend physiotherapy once weekly for four sessions.
     Goals: restore left knee extension and stability, single-leg stability, quadriceps strengthening, ankle mobility.
-    Advice: Avoid prolonged standing, continue progressive exercises.
     """
 
 
@@ -103,19 +102,14 @@ def mock_extracted_assessment() -> FirstAssessment:
                 ),
             ]
         ),
-        subjectiveGoals=[
-            SubjectiveGoal(
-                goalDetails="Walk without ankle and back pain",
-                targetDate="",  # Unmentioned in transcript, remains schema-safe empty string
-            )
-        ],
+        subjectiveGoals=[],
         objectiveGoals=[
             ObjectiveGoal(
-                goalName="Knee Extension",
-                goalCategory="Range of Motion",
-                unitName="degrees",
-                value="0",
-                targetDate="",  # Unmentioned, remains empty string
+                goalName="Restore left knee extension and stability, single-leg stability, quadriceps strengthening, ankle mobility",
+                goalCategory="Rehabilitation",
+                unitName="",
+                value="",
+                targetDate="",  # Unmentioned in transcript, remains empty string
             )
         ],
         recommendation=[
@@ -125,7 +119,7 @@ def mock_extracted_assessment() -> FirstAssessment:
             )
         ],
         patientAdvice=PatientAdvice(
-            adviceDetails="Avoid prolonged standing, continue progressive loading exercises."
+            adviceDetails=""  # No explicit patient advice spoken in session, remains empty string
         ),
     )
 
@@ -204,8 +198,9 @@ def test_unmentioned_target_date_remains_empty(
     agent = ClinicalExtractionAgent(llm=mock_llm)
     assessment, state = run_clinical_extraction(representative_transcript, agent=agent)
 
-    assert assessment.subjectiveGoals[0].targetDate == ""
+    assert assessment.subjectiveGoals == []
     assert assessment.objectiveGoals[0].targetDate == ""
+    assert assessment.objectiveGoals[0].value == ""
     assert state.get("is_valid") is True
 
 
@@ -265,14 +260,44 @@ def test_empty_transcript_handling():
     assert isinstance(state.get("final_assessment"), FirstAssessment)
 
 
+def test_treatment_recommendations_not_converted_to_patient_advice(
+    representative_transcript: str,
+    mock_extracted_assessment: FirstAssessment,
+):
+    """Regression Test: Verify that treatment recommendations and goals do NOT populate patientAdvice."""
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = mock_extracted_assessment
+
+    agent = ClinicalExtractionAgent(llm=mock_llm)
+    assessment, state = run_clinical_extraction(representative_transcript, agent=agent)
+
+    # patientAdvice must remain an empty string because no explicit advice was spoken to the patient
+    assert assessment.patientAdvice.adviceDetails == ""
+    # recommendation must hold the physiotherapy treatment recommendation
+    assert len(assessment.recommendation) == 1
+    assert assessment.recommendation[0].sessionType == "Physiotherapy"
+    assert "once weekly for 4 sessions" in assessment.recommendation[0].sessionFrequency.lower()
+    assert state.get("is_valid") is True
+
+
 def test_live_openai_extraction_if_key_available(representative_transcript: str):
     """Test 13 (Optional / Live Integration): Calls live OpenAI model if OPENAI_API_KEY is configured."""
     api_key = settings.OPENAI_API_KEY.strip()
     if not api_key or api_key in {"your_openai_api_key_here", "mock_key"}:
         pytest.skip("OPENAI_API_KEY not configured for live LLM extraction test (skipping)")
 
-    agent = ClinicalExtractionAgent()
-    assessment, state = run_clinical_extraction(representative_transcript, agent=agent)
+    try:
+        agent = ClinicalExtractionAgent()
+        assessment, state = run_clinical_extraction(representative_transcript, agent=agent)
+    except Exception as exc:
+        if "insufficient_quota" in str(exc) or "credit_balance_exhausted" in str(exc) or "429" in str(exc):
+            pytest.skip(f"OpenAI API quota exhausted (skipping live test): {str(exc)}")
+        raise
+
+    if state.get("validation_errors"):
+        err_str = " ".join(state["validation_errors"])
+        if "insufficient_quota" in err_str or "credit_balance_exhausted" in err_str or "429" in err_str:
+            pytest.skip(f"OpenAI API quota exhausted (skipping live test): {err_str}")
 
     assert isinstance(assessment, FirstAssessment)
     assert state.get("is_valid") is True

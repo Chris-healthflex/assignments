@@ -151,8 +151,13 @@ def test_real_clinical_assessment_wav_if_available():
     if not api_key or api_key in {"your_openai_api_key_here", "mock_key"}:
         pytest.skip("OPENAI_API_KEY not configured for live Whisper API call (skipping live test)")
 
-    transcriber = WhisperTranscriber()
-    transcript = transcriber.transcribe(audio_path)
+    try:
+        transcriber = WhisperTranscriber()
+        transcript = transcriber.transcribe(audio_path)
+    except TranscriptionError as exc:
+        if "insufficient_quota" in str(exc) or "credit_balance_exhausted" in str(exc) or "429" in str(exc):
+            pytest.skip(f"OpenAI API quota exhausted (skipping live test): {str(exc)}")
+        raise
 
     assert isinstance(transcript, str)
     assert len(transcript) > 50
