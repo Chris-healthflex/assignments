@@ -1,0 +1,136 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condyle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity. Provisional diagnosis: left tibial condyle fracture, status post-operative eight months.",
+    "chiefComplaint": "Left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery.",
+    "duration": "8 months"
+  },
+  "subjectiveAssessments": [
+    {
+      "testName": "Pain assessment",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing which is relieved with rest."
+    }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Knee flexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": "Restricted and painful knee flexion on overpressure"
+      },
+      {
+        "testName": "Knee extension",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "5",
+        "comments": "Restricted"
+      },
+      {
+        "testName": "Hip internal rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "45",
+        "right": "45",
+        "comments": ""
+      },
+      {
+        "testName": "Hip external rotation",
+        "unitName": "degrees",
+        "value": "",
+        "left": "60",
+        "right": "60",
+        "comments": ""
+      },
+      {
+        "testName": "Ankle dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": ""
+      },
+      {
+        "testName": "Tele-mobility",
+        "unitName": "",
+        "value": "good",
+        "left": "",
+        "right": "",
+        "comments": ""
+      },
+      {
+        "testName": "Hip range of motion",
+        "unitName": "",
+        "value": "Generally full and pain-free",
+        "left": "",
+        "right": "",
+        "comments": "Left hip extension was restricted"
+      },
+      {
+        "testName": "Surgical scar",
+        "unitName": "",
+        "value": "Healed",
+        "left": "",
+        "right": "",
+        "comments": "Noted on the medial aspect of the knee"
+      },
+      {
+        "testName": "Swelling",
+        "unitName": "",
+        "value": "Present",
+        "left": "",
+        "right": "",
+        "comments": ""
+      }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [
+    {
+      "goalName": "Restore knee extension",
+      "goalCategory": "Range of motion",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improve knee stability and single leg stability",
+      "goalCategory": "Stability",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Strengthen the quadriceps and functional lower limb musculature",
+      "goalCategory": "Strength",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improve ankle mobility",
+      "goalCategory": "Range of motion",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Activate the posterior chain",
+      "goalCategory": "Muscle activation",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    }
+  ],
+  "recommendation": [
+    {
+      "sessionType": "Physiotherapy",
+      "sessionFrequency": "Once weekly for four sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": ""
+  }
+}
