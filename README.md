@@ -1,63 +1,89 @@
 # Stance Health Clinical Assessment API
 
-A FastAPI pipeline that converts a physiotherapy clinical WAV recording into the structured `FirstAssessment` JSON format required by the Stance Health frontend.
+A FastAPI processing pipeline that converts local physiotherapy clinical WAV recordings into structured, validated `FirstAssessment` JSON records.
 
 ## Tech Stack
 
-*   **Python 3.10**
-*   **FastAPI**
-*   **OpenAI Whisper**
-*   **LangGraph**
-*   **Ollama**
-*   **Pydantic v2**
-*   **MongoDB**
-*   **Pytest**
+* **Python 3.10+** - Core runtime environment.
+* **FastAPI** - Web framework and API routing.
+* **OpenAI Whisper** - Local speech-to-text engine.
+* **LangGraph** - Workflow graph orchestration.
+* **Ollama** - Local LLM inference framework.
+* **Pydantic v2** - Data validation and schema serialization.
+* **MongoDB & PyMongo** - NoSQL document storage.
+* **Pytest** - Test execution suite.
 
-## Pipeline Flow
+---
 
-```text
-[WAV Audio] -> [Whisper Transcription] -> [LangGraph + Ollama Extraction] -> [Pydantic Validation] -> [FirstAssessment JSON] -> [MongoDB]
-```
-
-## Project Structure
+## Pipeline Architecture & Data Flow
 
 ```text
-stance-assessment-app/
-├── app/
-│   ├── models/
-│   ├── repositories/
-│   ├── services/
-│   ├── config.py
-│   ├── database.py
-│   └── main.py
-├── scripts/
-│   └── run_pipeline.py
-├── tests/
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
+[WAV Audio]
+   │
+   ▼
+[Whisper Transcription]
+   │
+   ▼
+[Raw Transcript]
+   │
+   ▼
+[LangGraph Extraction]
+   ├─► [Extract Node] ──► Local Ollama LLM
+   └─► [Validate Node]
+         │
+         ▼
+   [FirstAssessment + Confidence]
+         │
+         ▼
+   [Confidence Validation]
+         ├─► Confidence below threshold ──► 422 Unprocessable Entity
+         └─► Valid assessment
+               ├─► Returned by API
+               └─► Saved to MongoDB
 ```
 
-## Setup
+---
 
-### 1. Create Virtual Environment
+## Design Decisions & Architectural Rationale
+
+### 1. Local Processing for Clinical Data
+* **Decision:** Speech transcription uses local OpenAI Whisper; structured extraction uses a local Ollama model.
+* **Rationale:** Keeps clinical audio and transcripts within the local environment to protect patient privacy and meet strict data compliance standards.
+
+### 2. LangGraph Extraction Workflow
+* **Decision:** Implemented as a LangGraph workflow with an extraction node followed by a validation node.
+* **Rationale:** Provides a deterministic, stateful processing flow from raw text extraction to formal schema validation.
+
+### 3. Confidence-Based Extraction Validation
+* **Decision:** Extracted fields include AI-generated confidence scores checked against a `CONFIDENCE_THRESHOLD`.
+* **Rationale:** Prevents clinical hallucinations by automatically rejecting low-confidence extractions with a `422` response.
+
+### 4. Pydantic Schema Validation
+* **Decision:** `FirstAssessment` serves as the strict production schema applied immediately post-extraction.
+* **Rationale:** Ensures LLM outputs are programmatically cleaned, typed, and structured before API delivery or persistence.
+
+---
+
+## Setup Instructions
+
+### 1. Create and Activate Virtual Environment
 ```bash
 python -m venv venv
-# Windows (PowerShell):
+
+# Windows (PowerShell)
 .\venv\Scripts\Activate.ps1
-# Linux/macOS:
+
+# Linux/macOS
 source venv/bin/activate
 ```
 
-### 2. Install Dependencies
+### 2. Install Project Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment
-Create a `.env` file in the project root:
-
+### 3. Configure System Environment
+Create a `.env` file in the project workspace root:
 ```env
 APP_NAME="Stance Health Clinical Assessment API"
 APP_VERSION="1.0.0"
@@ -71,71 +97,87 @@ CONFIDENCE_THRESHOLD=0.70
 MAX_AUDIO_SIZE_MB=100
 ```
 
-### 4. External Dependencies
+### 4. Setup External System Dependencies
 
-#### Ollama
-Download and verify the local model (the project uses Ollama locally and does not require a paid LLM API):
+#### A. Ollama Model Deployment
+Ensure Ollama is running locally and pull the configured model:
 ```bash
 ollama pull llama3.2:3b
 ollama list
 ```
 
-#### MongoDB
-The default configuration uses a local MongoDB instance (`mongodb://localhost:27017`) and the database `stance_assessment`. MongoDB Atlas can also be used by changing the `MONGODB_URI` in your `.env` file.
+#### B. Local MongoDB Instance
+Ensure MongoDB is running locally at the configured URI: `mongodb://localhost:27017`
 
-#### FFmpeg
-Whisper requires FFmpeg installed on your system. Verify your installation with:
+#### C. System FFmpeg Binaries
+Whisper requires FFmpeg for audio processing. Verify it is installed and accessible:
 ```bash
 ffmpeg -version
 ```
 
 ---
 
-## Running the Pipeline (CLI)
+## Running the Execution Contexts
 
-1. Place your clinical audio file in the project root named `clinical_assessment.wav`.
-2. Run the script:
-   ```bash
-   python scripts/run_pipeline.py
-   ```
+### CLI Pipeline Script Execution
+Run the pipeline directly against a local audio file. By default, it looks for `clinical_assessment.wav` in the project root:
+```bash
+python scripts/run_pipeline.py
+```
 
-**What the pipeline does:**
-*   Transcribes the WAV file using Whisper.
-*   Extracts clinical information using LangGraph and Ollama.
-*   Validates the result using Pydantic.
-*   Saves the structured assessment and transcript.
+To target a specific file path:
+```bash
+python scripts/run_pipeline.py path/to/audio.wav
+```
 
-**Generated files:**
-*   `output_assessment.json`
-*   `transcript.txt`
+The script generates output files in the `output/` directory:
+* `output/assessment.json`
+* `output/transcript.txt`
 
----
-
-## Running the API
-
+### Web Service Runtime
 Start the FastAPI development server:
 ```bash
 uvicorn app.main:app --reload
 ```
-
-*   **API Base URL:** `http://127.0.0.1:8000`
-*   **Swagger Documentation:** `http://127.0.0`
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| **GET** | `/health` | Health check |
-| **POST** | `/assessments/parse` | Upload WAV and extract assessment |
-| **POST** | `/assessments` | Save assessment to MongoDB |
-| **GET** | `/assessments/{id}` | Retrieve specific assessment |
-| **GET** | `/assessments` | List assessments (supports optional `from_date` and `to_date` filters) |
+Access the interactive Swagger UI documentation at: `http://127.0.0`
 
 ---
 
-## Testing
+## API Documentation Map
 
-Run the test suite using pytest:
+| HTTP Method | Route | Purpose |
+| :--- | :--- | :--- |
+| **GET** | `/health` | Returns the service health status. |
+| **POST** | `/assessments/parse` | Transcribes WAV, extracts schema, validates confidence, and returns JSON. |
+| **POST** | `/assessments` | Saves a previously parsed `FirstAssessment` to MongoDB. |
+| **GET** | `/assessments/{assessment_id}` | Retrieves a single assessment by its MongoDB ObjectId. |
+| **GET** | `/assessments` | Lists assessments, with optional date filtering. |
+
+### Endpoint Details
+
+#### `POST /assessments/parse`
+* Accepts `.wav` files only.
+* Enforces file sizes up to `MAX_AUDIO_SIZE_MB`.
+* **Flow:** WAV ➔ Whisper ➔ Transcript ➔ LangGraph (Ollama) ➔ FirstAssessment ➔ Confidence Validation ➔ JSON.
+* Returns `422` if populated fields fall below the `CONFIDENCE_THRESHOLD`.
+
+#### `POST /assessments`
+* Accepts a pre-validated `FirstAssessment` JSON payload.
+* Stores the document inside the configured MongoDB collection.
+
+#### `GET /assessments/{assessment_id}`
+* Fetches a single document via its hex string ID.
+* Returns `404 Not Found` if the ID does not exist.
+
+#### `GET /assessments`
+* Supports query parameters: `?from_date=<ISO datetime>` and `?to_date=<ISO datetime>`.
+* Returns `422 Unprocessable Entity` if `from_date` is chronologically later than `to_date`.
+
+---
+
+## Test Execution Suite
+
+Execute the automated test suite using pytest:
 ```bash
-pytest -q
+pytest -v
 ```
