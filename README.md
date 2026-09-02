@@ -182,6 +182,22 @@ requirements.txt · .env.example
   propagate verbatim into the output by design � the agent copies the transcript
   rather than "correcting" it toward a plausible clinical term, because silently
   rewriting a misheard value is the failure mode that matters in a medical product.
+* Measured on the provided recording (all with vocabulary priming):
+
+  | term            | `base`        | `medium`     | `large-v3`  |
+  |-----------------|---------------|--------------|-------------|
+  | avulsion        | "evulsion"    | correct      | correct     |
+  | dorsiflexion    | "dose of flexion" | correct  | correct     |
+  | tibial condyle  | "condal"      | correct      | correct     |
+  | patellar        | "Butella"     | "Patella"    | "Patellar"  |
+  | "negative 5"    | "negic 5"     | "knee gig 5" | "negig 5"   |
+
+  `medium` (~5 min) is the recommended default; `large-v3` (~15 min, 2.9 GB) buys
+  only "Patellar" over "Patella". **No model recovers "negative 5 degrees"** for
+  right knee extension, so that value is reported as `5` rather than `-5`. This is
+  left uncorrected deliberately: the pipeline reports what was said, and inventing
+  the sign would be exactly the hallucination the guardrails prohibit. A clinician
+  reviewing the form is the correct place to catch it.
 * Numeric anti-hallucination check is string-based; spoken numbers ("one hundred and ten")
   are not matched, so they surface as flags rather than silently passing.
 * No auth — assumed to sit behind the existing API gateway.
