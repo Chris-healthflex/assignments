@@ -1,13 +1,13 @@
 {
   "clinicalDetails": {
-    "clinicalHistory": "The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condyle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity. Provisional diagnosis: left tibial condyle fracture, status post-operative eight months.",
+    "clinicalHistory": "The patient was apparently normal 8 months ago when she was involved in a road traffic accident resulting in a left tibial condyle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by 4 to 6 weeks of non-weight bearing and subsequent progressive loading. Despite 8 months having passed, the patient has not returned to full functional activity and presented for further management. Provisional diagnosis: left tibial condyle fracture status postoperative 8 months.",
     "chiefComplaint": "Left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery.",
     "duration": "8 months"
   },
   "subjectiveAssessments": [
     {
-      "testName": "Pain assessment",
-      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing which is relieved with rest."
+      "testName": "Pain and Irritability",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest."
     }
   ],
   "objectiveAssessment": {
@@ -18,7 +18,7 @@
         "value": "",
         "left": "124",
         "right": "130",
-        "comments": "Restricted and painful knee flexion on overpressure"
+        "comments": "Restricted and painful knee flexion on overpressure."
       },
       {
         "testName": "Knee extension",
@@ -26,7 +26,7 @@
         "value": "",
         "left": "20",
         "right": "5",
-        "comments": "Restricted"
+        "comments": "Transcript states 'knee gig 5 degrees' on the right. Restricted extension noted."
       },
       {
         "testName": "Hip internal rotation",
@@ -34,7 +34,7 @@
         "value": "",
         "left": "45",
         "right": "45",
-        "comments": ""
+        "comments": "Bilateral"
       },
       {
         "testName": "Hip external rotation",
@@ -42,7 +42,7 @@
         "value": "",
         "left": "60",
         "right": "60",
-        "comments": ""
+        "comments": "Bilateral"
       },
       {
         "testName": "Ankle dorsiflexion",
@@ -53,7 +53,7 @@
         "comments": ""
       },
       {
-        "testName": "Tele-mobility",
+        "testName": "Patella mobility",
         "unitName": "",
         "value": "good",
         "left": "",
@@ -61,28 +61,20 @@
         "comments": ""
       },
       {
-        "testName": "Hip range of motion",
+        "testName": "Hip extension",
         "unitName": "",
-        "value": "Generally full and pain-free",
-        "left": "",
-        "right": "",
-        "comments": "Left hip extension was restricted"
+        "value": "",
+        "left": "restricted",
+        "right": "full",
+        "comments": "Hip range of motion was generally full and pain-free although left hip extension was restricted."
       },
       {
-        "testName": "Surgical scar",
+        "testName": "Visual Inspection & Palpation",
         "unitName": "",
-        "value": "Healed",
+        "value": "",
         "left": "",
         "right": "",
-        "comments": "Noted on the medial aspect of the knee"
-      },
-      {
-        "testName": "Swelling",
-        "unitName": "",
-        "value": "Present",
-        "left": "",
-        "right": "",
-        "comments": ""
+        "comments": "Healed surgical scar noted on the medial aspect of the knee, with swelling present."
       }
     ]
   },
@@ -93,41 +85,41 @@
       "goalCategory": "Range of motion",
       "unitName": "",
       "value": "",
-      "targetDate": ""
+      "targetDate": "4 weeks"
     },
     {
       "goalName": "Improve knee stability and single leg stability",
       "goalCategory": "Stability",
       "unitName": "",
       "value": "",
-      "targetDate": ""
+      "targetDate": "4 weeks"
     },
     {
       "goalName": "Strengthen the quadriceps and functional lower limb musculature",
       "goalCategory": "Strength",
       "unitName": "",
       "value": "",
-      "targetDate": ""
+      "targetDate": "4 weeks"
     },
     {
       "goalName": "Improve ankle mobility",
       "goalCategory": "Range of motion",
       "unitName": "",
       "value": "",
-      "targetDate": ""
+      "targetDate": "4 weeks"
     },
     {
       "goalName": "Activate the posterior chain",
-      "goalCategory": "Muscle activation",
+      "goalCategory": "Strength",
       "unitName": "",
       "value": "",
-      "targetDate": ""
+      "targetDate": "4 weeks"
     }
   ],
   "recommendation": [
     {
       "sessionType": "Physiotherapy",
-      "sessionFrequency": "Once weekly for four sessions"
+      "sessionFrequency": "once weekly for 4 sessions"
     }
   ],
   "patientAdvice": {

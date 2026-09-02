@@ -128,10 +128,23 @@ clinician fills in is safer than a plausible number they might not notice.
 Non-core gaps (e.g. no goals discussed) only produce flags, because a
 legitimate session can simply not cover them.
 
-**5. Whisper without ffmpeg.**
+**5. Whisper without ffmpeg, primed with domain vocabulary.**
 `whisper.load_audio` shells out to ffmpeg; instead the WAV is read with
 `soundfile` and resampled to 16 kHz mono with `scipy.signal.resample_poly`,
 so the service runs on a bare Python install. Backend and model size are env-configurable.
+
+Model size matters here. On the provided recording, `base` produced
+"evulsion ACL tear", "ankle dose of flexion" and "Butella mobility"; `medium`
+recovered "avulsion", "dorsiflexion" and "tibial condyle". Since extraction is
+deliberately forbidden from guessing, transcription quality is the ceiling on
+output quality — so `WHISPER_MODEL=medium` is the recommended setting, with
+`base` available for fast iteration.
+
+`WHISPER_INITIAL_PROMPT` primes the decoder with generic musculoskeletal
+vocabulary (not content from any particular recording). This is what recovers
+"patellar mobility" from what `medium` alone heard as "tele-mobility", and it
+preserves signed ROM values — "negative 5 degrees" of knee extension is
+clinically distinct from "5 degrees", and an unprimed decoder drops the sign.
 
 **6. Storage shape.**
 Each document stores `assessment` exactly as returned plus an optional `meta`
@@ -142,7 +155,9 @@ audit trail (source filename, transcript, flags, confidence) and `createdAt`
 **7. Provider-agnostic LLM.** `LLM_PROVIDER=openai|anthropic|google`, temperature 0,
 structured output via `with_structured_output` for schema-constrained generation.
 The extraction graph never sees provider-specific code, so swapping models is a
-one-line `.env` change. Default here is `google` / `gemini-2.5-flash`.
+one-line `.env` change. Default here is `google` / `gemini-3.5-flash`, chosen over
+`gemini-3.6-flash` because the latter is a reasoning model: ~43 s versus ~1.7 s on a
+trivial prompt, with no observable benefit on an extraction task this constrained.
 
 ## Project layout
 
@@ -163,6 +178,10 @@ requirements.txt Â· .env.example
 ## Known limitations / next steps
 * Single-speaker transcript (no diarisation). Whisper `small`/`medium` improves
   accuracy on clinical vocabulary at the cost of speed; `base` is the default for CI-friendliness.
+* Transcription is the accuracy bottleneck, not extraction. Residual ASR errors
+  propagate verbatim into the output by design — the agent copies the transcript
+  rather than "correcting" it toward a plausible clinical term, because silently
+  rewriting a misheard value is the failure mode that matters in a medical product.
 * Numeric anti-hallucination check is string-based; spoken numbers ("one hundred and ten")
   are not matched, so they surface as flags rather than silently passing.
 * No auth â€” assumed to sit behind the existing API gateway.
