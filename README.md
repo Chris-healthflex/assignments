@@ -53,6 +53,27 @@ pytest tests/test_schema.py                                                     
 Prints the transcript (stderr), the FirstAssessment JSON (stdout), writes it to
 `tests/output.json`, and lists every flagged field. Exit code `2` mirrors the API's 422.
 
+## Verified end-to-end run
+
+All four endpoints exercised against a live MongoDB Atlas cluster
+(`tests/run_endpoints.py`, Whisper `medium` + `gemini-3.5-flash`):
+
+```
+health          200  whisper=local  llm=google:gemini-3.5-flash
+EP1 parse       200  306s, overall_confidence 0.9, exactly the 7 schema keys
+EP2 save        201  id 6a986e24f928fea00c1acc4d
+EP3 get by id   200  stored document identical to the parsed output
+    unknown id  404
+EP4 list+range  200  1 match in range, 0 matches outside it
+```
+
+Reproduce with:
+
+```bash
+uvicorn app.main:app --port 8000
+python tests/run_endpoints.py
+```
+
 ## Endpoints
 
 | # | Method & path | Purpose |
