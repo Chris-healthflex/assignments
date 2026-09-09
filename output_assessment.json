@@ -1,0 +1,121 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condal fracture and an evulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Galyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity and presented for further management.",
+    "chiefComplaint": "Left knee pain, difficulty walking and performing functional activities",
+    "duration": "8 months"
+  },
+  "subjectiveAssessments": [
+    {
+      "testName": "Pain Aggravating & Relieving Factors",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing; relieved with rest."
+    },
+    {
+      "testName": "Functional Mobility & Gait",
+      "conclusion": "Difficulty walking, prolonged standing, and performing daily functional activities."
+    }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Knee Flexion (Active ROM)",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": "Restricted and painful knee flexion on overpressure"
+      },
+      {
+        "testName": "Knee Extension (Active ROM)",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "-5",
+        "comments": "Restricted knee extension (left 20 deg vs right extension)"
+      },
+      {
+        "testName": "Hip Internal Rotation",
+        "unitName": "degrees",
+        "value": "45",
+        "left": "45",
+        "right": "45",
+        "comments": "Bilateral hip internal rotation"
+      },
+      {
+        "testName": "Hip External Rotation",
+        "unitName": "degrees",
+        "value": "60",
+        "left": "60",
+        "right": "60",
+        "comments": "Bilateral hip external rotation"
+      },
+      {
+        "testName": "Ankle Dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": "Restricted ankle dorsiflexion on affected left side"
+      },
+      {
+        "testName": "Patellar Mobility & Inspection",
+        "unitName": "",
+        "value": "Good mobility",
+        "left": "Good mobility",
+        "right": "",
+        "comments": "Healed surgical scar on medial aspect of left knee with swelling noted"
+      }
+    ]
+  },
+  "subjectiveGoals": [
+    {
+      "goalDetails": "Return to full functional activity, pain-free prolonged walking and standing",
+      "targetDate": ""
+    }
+  ],
+  "objectiveGoals": [
+    {
+      "goalName": "Restore Left Knee Extension",
+      "goalCategory": "Range of Motion",
+      "unitName": "degrees",
+      "value": "0",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improve Left Knee Flexion",
+      "goalCategory": "Range of Motion",
+      "unitName": "degrees",
+      "value": "130",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Improve Left Ankle Dorsiflexion",
+      "goalCategory": "Range of Motion",
+      "unitName": "degrees",
+      "value": "12",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Quadriceps & Lower Limb Musculature Strengthening",
+      "goalCategory": "Strength",
+      "unitName": "",
+      "value": "Grade 5/5",
+      "targetDate": ""
+    },
+    {
+      "goalName": "Single Leg Stability",
+      "goalCategory": "Stability & Proprioception",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    }
+  ],
+  "recommendation": [
+    {
+      "sessionType": "Physiotherapy",
+      "sessionFrequency": "Once weekly for four sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": "Focus on restoring knee extension and improving single leg stability. Perform quadriceps and functional lower limb strengthening, improve ankle mobility, and activate posterior chain musculature. Rest during prolonged standing or walking when pain arises."
+  }
+}
