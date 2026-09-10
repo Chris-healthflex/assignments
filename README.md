@@ -2,6 +2,8 @@
 
 A contract-first clinical assessment pipeline for **Stance Health** that turns clinician-patient WAV audio sessions into strictly validated `FirstAssessment` JSON, backed by Whisper ASR, LangGraph structured extraction, deterministic numeric/date grounding, MongoDB persistence, and an editorial React report UI.
 
+> 📘 **Looking for an in-depth technical walkthrough?** See [ARCHITECTURE_AND_WORKFLOW.md](file:///d:/stance_health/ARCHITECTURE_AND_WORKFLOW.md) for a complete, top-to-bottom engineering guide explaining every service, audio guard, LangGraph node, and grounding rule.
+
 ---
 
 ## 1. System Architecture
