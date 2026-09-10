@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+.pytest_cache/
+.ruff_cache/
+
+# Secrets. .env.example carries the placeholders instead.
+.env
+.env.*
+!.env.example
+
+# The supplied session audio is input, not source.
+*.wav

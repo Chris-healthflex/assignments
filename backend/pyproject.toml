@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clinical-assessment"
+version = "0.1.0"
+description = "Transcribe a clinician-patient session and extract a structured assessment."
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+# N (pep8-naming) is deliberately absent. The schema's attribute names are camelCase
+# because they are the wire contract the frontend consumes, so N815 would fight the
+# assignment's exact-key requirement rather than help.
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+# Pinned explicitly because pytest-asyncio warns when it is left unset.
+asyncio_default_fixture_loop_scope = "function"
+# Integration tests are opt-in via `pytest -m integration`. Without this, a
+# MONGODB_URI in a local .env file silently turns every plain `pytest` run into
+# one that waits on server-selection timeouts.
+addopts = "-m 'not integration'"
+markers = [
+    "integration: needs a live MongoDB; skipped unless MONGODB_URI is set",
+]
