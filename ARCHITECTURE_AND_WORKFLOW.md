@@ -370,6 +370,20 @@ The frontend was custom-built with React 18, Vite, TypeScript, and Lucide icons 
 4. **Contract Verification**:
    - The frontend's TypeScript interfaces are generated directly from the FastAPI `openapi.json`, ensuring the frontend and backend can never drift out of sync.
 
+### Visual Workflow
+
+#### 1. Initialization (Session Upload)
+Clinician drag-and-drop interface accepting standard PCM WAV clinical consultation audio sessions:
+![1. Initialization](assets/initialization.png)
+
+#### 2. Processing (Pipeline in Flight & Audio Waveform)
+Client-side Web Audio API renders the audio waveform peaks while tracking the pipeline stages:
+![2. Processing](assets/processing.png)
+
+#### 3. Results (Editorial Clinical Report & Evidence Rail)
+Finalized `FirstAssessment` report formatted with clinical typography (Sections 01–06) paired with the extraction audit and transcript evidence rail:
+![3. Results](assets/results.png)
+
 ---
 
 ## 12. Layer 9: Headless CLI Pipeline (`scripts/run_pipeline.py`)

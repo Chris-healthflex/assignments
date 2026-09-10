@@ -201,6 +201,20 @@ The assignment brief explicitly highlights that *"our production frontend consum
 - Includes an audio waveform preview rendered directly from the WAV audio buffer, and `@media print` styles for clean physical chart printing.
 - TypeScript interfaces are aligned with the FastAPI `openapi.json` contract.
 
+#### UI Workflow Walkthrough
+
+##### 1. Initialization (Session Upload)
+Clinician drag-and-drop interface accepting standard PCM WAV clinical consultation audio sessions.
+![1. Initialization](assets/initialization.png)
+
+##### 2. Processing (Pipeline in Flight & Audio Waveform)
+Client-side Web Audio API renders the audio waveform peaks while tracking the pipeline stages (Audio Guard → Whisper ASR → LangGraph extraction → Deterministic Grounding → Audit Fusion).
+![2. Processing](assets/processing.png)
+
+##### 3. Results (Editorial Clinical Report & Evidence Rail)
+Finalized `FirstAssessment` report formatted with clinical typography on the left (Sections 01–06), paired with the real-time extraction audit, model latency metrics, and transcript evidence grounding rail on the right.
+![3. Results](assets/results.png)
+
 ---
 
 ## 6. Test Suite & Verification
