@@ -1,238 +1,218 @@
-# Clinical Assessment Pipeline & Editorial Report Interface
+# Stance Health - Clinical Assessment Extraction Pipeline
 
-A contract-first clinical assessment pipeline for **Stance Health** that turns clinician-patient WAV audio sessions into strictly validated `FirstAssessment` JSON, backed by Whisper ASR, LangGraph structured extraction, deterministic numeric/date grounding, MongoDB persistence, and an editorial React report UI.
+Pipeline that processes clinical audio consultations (WAV) into structured `FirstAssessment` records. It uses Whisper for local speech-to-text, LangGraph for entity extraction, deterministic grounding checks for numeric and temporal measurements, MongoDB for record persistence, and a React web interface for review.
 
-> 📘 **Looking for an in-depth technical walkthrough?** See [ARCHITECTURE_AND_WORKFLOW.md](file:///d:/stance_health/ARCHITECTURE_AND_WORKFLOW.md) for a complete, top-to-bottom engineering guide explaining every service, audio guard, LangGraph node, and grounding rule.
+Detailed architecture and workflow documentation is available in [ARCHITECTURE_AND_WORKFLOW.md](ARCHITECTURE_AND_WORKFLOW.md).
 
 ---
 
-## 1. System Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[WAV upload<br/>multipart/form-data] --> B[Audio Guard<br/>sniff header, resample to 16kHz mono]
+    A[WAV upload<br/>multipart/form-data] --> B[Audio Guard<br/>RIFF/WAVE header check, 16kHz mono resample]
     B --> C[Whisper<br/>transcription]
-    C --> D{LangGraph Agent}
+    C --> D{LangGraph}
     D -->|extract| D1[Extract Node<br/>structured LLM call]
-    D1 -->|ground| D2[Ground Node<br/>deterministic transcript check]
-    D2 -->|normalize| D3[Normalize Node<br/>coerce to FirstAssessment shape]
-    D3 -->|audit| D4[Audit Node<br/>compose ConfidenceReport]
+    D1 -->|ground| D2[Ground Node<br/>transcript text match]
+    D2 -->|normalize| D3[Normalize Node<br/>FirstAssessment schema coercion]
+    D3 -->|audit| D4[Audit Node<br/>confidence scoring]
     D4 --> E{overall confidence<br/>>= threshold?}
-    E -->|no| F[422 Unprocessable Entity<br/>field-level detail]
-    E -->|yes| G[FirstAssessment JSON<br/>exact schema, response body]
+    E -->|no| F[422 Unprocessable Entity<br/>field flags]
+    E -->|yes| G[FirstAssessment JSON<br/>exact schema]
     G --> H[(MongoDB)]
     H --> I[FastAPI read endpoints]
-    I --> J[React / Swiss Report UI]
+    I --> J[React Report UI]
     G -. confidence headers .-> J
 ```
 
-The transcription stage sits **outside** the LangGraph graph: transcription is a deterministic, single-shot transformation with no branching or retries worth modeling as graph state. The graph begins once text is available to reason over (`extract → ground → normalize → audit`).
+Transcription runs before the LangGraph agent because speech-to-text is a deterministic, linear step. The state graph begins once text is available to extract, verify, and validate against the schema.
 
-### Service Breakdown & Roles
+### Services
 
-| Service | Port | Technology | Primary Responsibility |
+| Service | Port | Stack | Role |
 |---|---|---|---|
-| **`app` (Backend API)** | `8000` | FastAPI, Whisper, LangGraph, Pydantic v2 | • Sniffs WAV header & resamples to 16 kHz mono (no ffmpeg).<br>• Runs Whisper speech-to-text transcription.<br>• Executes LangGraph clinical extraction (`01`–`06`).<br>• Hard-caps ungrounded numeric/date scores ($\le 0.35$).<br>• Enforces byte-for-byte `FirstAssessment` JSON contract. |
-| **`mongo` (Database)** | `27017` | MongoDB 7.0 | • Stores persisted `AssessmentRecord` documents with audit reports.<br>• Supports paginated and date-range filtered clinical history.<br>• *Note: Audio parsing (`/assessments/parse`) runs standalone without MongoDB.* |
-| **`frontend` (Review UI)** | `3000` | React 18, Vite, TypeScript, Lucide | • Clinical review interface for doctors and physiotherapists.<br>• In-browser WAV waveform visualizer.<br>• Side-by-side clinical narrative and transcript evidence margin rail.<br>• Validates strict contract consumption in a real client application. |
+| **`app`** | `8000` | FastAPI, Whisper, LangGraph, Pydantic v2 | Audio validation, speech-to-text, entity extraction, grounding, REST endpoints |
+| **`mongo`** | `27017` | MongoDB 7.0 | Persistence for assessment records and audit history |
+| **`frontend`** | `3000` | React 18, Vite, TypeScript | Audio upload, waveform inspection, report view, and evidence rail |
 
 ---
 
-## 2. Quickstart & Lifecycle Scripts
+## Quickstart
 
-> [!NOTE]
-> **Why Docker vs. Local Mode & Execution Time Expectations**
-> - **Why Docker?** Provides zero-setup MongoDB and an identical Linux environment with all C audio dependencies (`libsndfile1`) pre-configured.
-> - **Initial Build Duration (3–5 min)**: The first `docker compose up --build` downloads ~2.5 GB of assets (PyTorch ~900 MB, Whisper neural net weights ~140 MB, MongoDB image ~700 MB). Subsequent starts use cached layers and boot instantly.
-> - **Local Fast Path (5 sec)**: If you already have Python 3.10 and Node.js on your machine, **Option B (Local Setup)** bypasses container building and launches in seconds.
-> - **Audio Inference Time (20–45 sec)**: Transcribing a full 4.5-minute clinical session (`clinical_assessment.wav`) on CPU naturally takes 20–45s before LangGraph extraction begins.
+### Automated Scripts
 
-Cross-platform lifecycle scripts are provided at the repository root:
+Root scripts detect whether Docker is running:
+- **Docker running**: starts containers via `docker compose up -d --build`.
+- **Docker not running**: runs FastAPI locally on port `8000` (via `.venv`) and frontend on port `3000`.
 
-| Environment | Start | Stop | Clean |
+| Platform | Start | Stop | Clean |
 |---|---|---|---|
 | **Linux / macOS** | `./start.sh` | `./stop.sh` | `./clean.sh` |
 | **Windows (PowerShell)** | `.\start.ps1` | `.\stop.ps1` | `.\clean.ps1` |
 | **Windows (CMD)** | `start.bat` | `stop.bat` | `clean.bat` |
 
-**What the start script does:**
-1. Checks for `.env` and initializes it from `.env.example` if missing.
-2. Checks if the Docker daemon is running:
-   - **Docker Active**: Automatically builds and boots the full stack (FastAPI backend + MongoDB) via `docker compose up -d --build`.
-   - **Docker Inactive**: Falls back to running FastAPI backend locally via `uvicorn` on port `8000` (with non-blocking, graceful fallback if local MongoDB is not running).
-3. Installs frontend dependencies (if `node_modules` missing) and launches the React Vite frontend on port `3000`.
-
-Once started:
-- **Frontend UI**: [http://localhost:3000](http://localhost:3000)
-- **Backend API**: [http://localhost:8000](http://localhost:8000)
-- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **System Status**: [http://localhost:8000/](http://localhost:8000/)
-
 ---
 
-### Environment Configuration (`.env`)
+### Manual Setup
 
-A pre-configured [`.env`](file:///d:/stance_health/.env) file is committed at the project root with empty credential values. Choose your preferred LLM provider and configure its settings:
-
-#### 1. Google Gemini (Default / Recommended Cloud)
-```ini
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-flash
-```
-
-#### 2. Local Ollama (100% Offline & Private, Zero API Keys)
-Run completely offline on your own machine without making external API calls:
-```ini
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3:latest
-```
-
-#### 3. OpenAI
-```ini
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-your-openai-key-here
-OPENAI_MODEL=gpt-4o-mini
-```
-
-#### 4. Anthropic
-```ini
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
-ANTHROPIC_MODEL=claude-3-haiku-20240307
-```
-
-#### Core Pipeline & Database Knobs
-| Variable | Default | Purpose |
-|---|---|---|
-| `CONFIDENCE_THRESHOLD` | `0.70` | Acceptance gate for overall session confidence; ungrounded clinical values drop confidence $\le 0.35$. |
-| `WHISPER_MODEL` | `base` | Local Whisper model size (`tiny`, `base`, `small`, `medium`). Runs 100% locally. |
-| `MONGODB_URL` | `mongodb://localhost:27017` | MongoDB connection string (set automatically to `mongodb://mongo:27017` under Docker Compose). |
-
----
-
-### Option A: One-Command Docker Compose
-
-Run the full stack (FastAPI backend on `:8000` + MongoDB on `:27017` + pre-cached Whisper model):
-
-```bash
-# 1. Edit .env and supply your LLM API key (or leave as ollama for local inference)
-
-# 2. Build and launch
-docker compose up --build
-```
-Then start the frontend in a separate terminal:
-```bash
-cd frontend && npm install && npm run dev
-```
-
-### Option B: Local Setup
+#### Option 1: Local Environment
 
 1. **Backend**:
    ```bash
    python -m venv .venv
    source .venv/bin/activate       # On Windows: .\.venv\Scripts\activate
    pip install -r requirements.txt
-   cp .env.example .env            # On Windows: copy .env.example .env
-
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
+   API runs at `http://localhost:8000` (docs at `/docs`).
 
-2. **Frontend** (Vite + React + TypeScript):
+2. **Frontend**:
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
-   Open `http://localhost:3000` in your browser.
+   UI runs at `http://localhost:3000`.
+
+#### Option 2: Docker Compose
+
+```bash
+docker compose up --build
+```
+This builds and starts the FastAPI backend and MongoDB. First-time image build takes 3–5 minutes because PyTorch, Whisper weights, and MongoDB are downloaded (~2.5 GB total). Subsequent boots are cached and start immediately.
+
+Start the frontend in a separate terminal:
+```bash
+cd frontend && npm install && npm run dev
+```
 
 ---
 
-## 3. Running the Pipeline via CLI
+## Configuration (`.env`)
 
-To directly process a WAV file without spinning up servers:
+A default `.env` template is included at the repository root. Configure your selected LLM provider:
+
+### 1. Google Gemini (Cloud)
+```ini
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+### 2. Ollama (100% Offline / Local)
+Runs fully offline with no API key or external calls:
+```ini
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3:latest
+```
+
+### 3. OpenAI
+```ini
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+### 4. Anthropic
+```ini
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-3-haiku-20240307
+```
+
+### Pipeline Settings
+
+| Variable | Default | Description |
+|---|---|---|
+| `CONFIDENCE_THRESHOLD` | `0.70` | Acceptance threshold for overall session confidence |
+| `WHISPER_MODEL` | `base` | Model size for local Whisper speech-to-text (`tiny`, `base`, `small`, `medium`) |
+| `MONGODB_URL` | `mongodb://localhost:27017` | Mongo connection string (overridden to `mongodb://mongo:27017` in Docker) |
+
+---
+
+## CLI Execution
+
+To process a WAV file directly without starting servers:
 
 ```bash
 python scripts/run_pipeline.py clinical_assessment.wav -o output_assessment.json --save-transcript transcript.txt
 ```
 
-Exit code is `0` if all confidence checks pass; `2` if any numeric/date field failed grounding or confidence fell below threshold.
+- Exit code `0`: Extraction completed and passed confidence threshold.
+- Exit code `2`: Extraction completed but failed confidence threshold or grounding checks.
+- Exit code `1`: Execution error (missing file, unreadable audio).
 
 ---
 
-## 4. API Reference
+## API Endpoints
 
-| Endpoint | Method | Status | Description |
+| Method | Route | Status | Description |
 |---|---|---|---|
-| `/` | `GET` | `200` | System status, service links, and registered endpoint catalogue. |
-| `/health` | `GET` | `200` | Liveness check returning system timestamp. |
-| `/assessments/parse` | `POST` (multipart `file`) | `200` | Returns **bare** `FirstAssessment` JSON (strict contract, no extra fields). Confidence and latency are delivered via headers: `X-Extraction-Confidence`, `X-Extraction-Model`, `X-Pipeline-Latency-Ms`. |
-| `/assessments/parse` | `POST` (multipart `file`) | `400` | Invalid or corrupt WAV file rejected at audio guard before Whisper. |
-| `/assessments/parse` | `POST` (multipart `file`) | `422` | Extraction confidence below threshold. Returns `ConfidenceReport` with ungrounded flags. |
-| `/assessments` | `POST` (JSON body) | `201` | Persists a `FirstAssessment` to MongoDB, returning an `AssessmentRecord` wrapper. |
-| `/assessments/{id}` | `GET` | `200` | Retrieves stored `AssessmentRecord` (including audit report and timestamp). Returns `404` if not found. |
-| `/assessments` | `GET` (`?from=&to=&limit=20&skip=0`) | `200` | Paginated assessment registry (`{items: [...], total, limit, skip}`). Supports ISO date filtering. |
+| `GET` | `/` | 200 | Health status and route listing |
+| `GET` | `/health` | 200 | Liveness check |
+| `POST` | `/assessments/parse` | 200 | Processes uploaded WAV into bare `FirstAssessment` JSON. Confidence and latency metrics are sent via headers (`X-Extraction-Confidence`, `X-Extraction-Model`, `X-Pipeline-Latency-Ms`). |
+| `POST` | `/assessments/parse` | 400 | Non-WAV or malformed audio rejected at header guard |
+| `POST` | `/assessments/parse` | 422 | Session confidence below threshold; returns `ConfidenceReport` with ungrounded flags |
+| `POST` | `/assessments` | 201 | Persists a validated assessment to MongoDB |
+| `GET` | `/assessments/{id}` | 200 | Retrieves an assessment record with its stored audit report |
+| `GET` | `/assessments` | 200 | Paginated assessments (`?from=&to=&limit=20&skip=0`) |
 
 ---
 
-## 5. Design Decisions
+## Engineering Details
 
-### A. Strict Contract Isolation: Confidence Never Enters the Response Body
-The brief explicitly dictates: *"our production frontend consumes this JSON"*. In a production setup, downstream consumers enforce strict schemas and will break if arbitrary keys like `_confidence` or `flags` are injected.
-- On `POST /assessments/parse`, the response body is **byte-for-byte** a valid `FirstAssessment` (`extra="forbid"` on every nested model, all strings default to `""`, all arrays default to `[]`).
-- Confidence is delivered via standard response headers (`X-Extraction-Confidence`, `X-Pipeline-Latency-Ms`) and stored internally in MongoDB within the `AssessmentRecord` wrapper on `GET /assessments/{id}`.
+### Contract Isolation
+Downstream clients require an exact `FirstAssessment` payload. To avoid schema breakage:
+- Response body on `POST /assessments/parse` contains only fields defined in `FirstAssessment` (`extra="forbid"` on all nested models, null strings normalized to `""`, null arrays to `[]`).
+- Confidence scores and latency metrics are passed via HTTP response headers and stored in MongoDB under `AssessmentRecord.meta`.
 
-### B. Anti-Hallucination: Hard-Capped Fusion, Not Advisory Reporting
-LLMs frequently self-report high confidence on plausible-sounding but invented measurements.
-- For every numeric measurement (ROM degrees, pain scores, strengths) and temporal phrase (dates, durations), a **deterministic regex/window string search** checks the transcript for the spoken literal (or spoken English number words like `"fifty two"` for `52`).
-- **The Fusion Rule**:
+### Deterministic Grounding
+LLMs can self-report high confidence on hallucinated measurements. To prevent this:
+- Every extracted numeric value (ROM degrees, pain scale scores) and temporal phrase (durations, dates) is cross-checked against the transcript using digit and spoken number-word search (`"52"` and `"fifty two"`).
+- Proximity search matches values against anatomical anchors (e.g. searching for `"124"` near `"flexion"`).
+- **Fusion rule**:
   $$\text{fused\_confidence} = \begin{cases} \min(\text{llm\_confidence}, 0.35) & \text{if ungrounded numeric/date} \\ \text{llm\_confidence} & \text{otherwise} \end{cases}$$
-  An ungrounded number is hard-capped at $\le 0.35$ in code, not merely flagged in a prompt.
-- **Minimum, not average**: Overall session confidence is the minimum fused score across all populated fields. A single hallucinated number cannot be diluted by six confident prose fields.
+- **Minimum aggregation**: Overall session confidence is the minimum fused score among populated fields. A single hallucinated number fails the session rather than being averaged out by narrative fields.
 
-### C. Zero System `ffmpeg` Dependency
-Decoded and resampled purely through `soundfile` + `scipy.signal.resample_poly` to 16 kHz mono. This guarantees portability across any Docker host or grading environment without requiring an external `ffmpeg` binary installed on the OS PATH.
-
-### D. Why the Frontend Exists (Swiss International / Editorial Report UI)
-The assignment brief explicitly highlights that *"our production frontend consumes this exact JSON schema"*. Building a functional, production-ready frontend proves the utility of the backend's strict contract and demonstrates how confidence metadata is consumed in a real clinic workflow:
-- Built with React, TypeScript, and Vite.
-- Implements a 12-column grid with an **asymmetric 8/4 split**: an 8-column reading column for clinical narrative sections (01 to 06) and a 4-column margin rail dedicated to confidence flags and transcript evidence spans.
-- Includes an audio waveform preview rendered directly from the WAV audio buffer, and `@media print` styles for clean physical chart printing.
-- TypeScript interfaces are aligned with the FastAPI `openapi.json` contract.
-
-#### UI Workflow Walkthrough
-
-##### 1. Initialization (Session Upload)
-Clinician drag-and-drop interface accepting standard PCM WAV clinical consultation audio sessions.
-![1. Initialization](assets/initialization.png)
-
-##### 2. Processing (Pipeline in Flight & Audio Waveform)
-Client-side Web Audio API renders the audio waveform peaks while tracking the pipeline stages (Audio Guard → Whisper ASR → LangGraph extraction → Deterministic Grounding → Audit Fusion).
-![2. Processing](assets/processing.png)
-
-##### 3. Results (Editorial Clinical Report & Evidence Rail)
-Finalized `FirstAssessment` report formatted with clinical typography on the left (Sections 01–06), paired with the real-time extraction audit, model latency metrics, and transcript evidence grounding rail on the right.
-![3. Results](assets/results.png)
+### FFmpeg-Free Audio Decoding
+Audio is decoded and resampled using `soundfile` and `scipy.signal.resample_poly` to 16 kHz mono. This avoids requiring a system `ffmpeg` binary in the host environment.
 
 ---
 
-## 6. Test Suite & Verification
- 
-Run the test suite using `pytest`:
- 
+## UI Walkthrough
+
+### 1. Initialization
+Session audio upload interface supporting standard PCM WAV files:
+![Initialization](assets/initialization.png)
+
+### 2. Processing
+Audio waveform visualizer and real-time pipeline execution checklist:
+![Processing](assets/processing.png)
+
+### 3. Results
+Structured assessment output (left) with extraction audit and transcript evidence rail (right):
+![Results](assets/results.png)
+
+---
+
+## Tests
+
+Run the test suite:
+
 ```bash
-# Contract invariants, grounding logic, and pipeline flow:
+# Unit, schema, and API tests
 python -m pytest tests/test_schema.py tests/test_grounding.py tests/test_pipeline.py tests/test_api.py -v
- 
-# Live golden-path test on the provided clinical_assessment.wav:
+
+# Golden-path test on sample audio
 python -m pytest tests/test_e2e_live.py -v -m "not live"
 ```
 
 ---
 
-## 7. Known Limitations & Scope Boundaries
+## Limitations
 
-1. **Free-text Prose Grounding**: Narrative fields (`chiefComplaint`, `adviceDetails`) rely on LLM confidence and token presence; they cannot be deterministically verified like discrete numeric degrees.
-2. **Medical Nomenclature Without Fine-Tuning**: Standard Whisper models may occasionally mishear complex orthopaedic eponyms (e.g. *"evulsion"* for *avulsion*, or specific surgeon surnames). An initial prompt hint is used to guide medical vocabulary.
-3. **Single-Stream Audio**: Overlapping speaker voices are not diarized; the conversation is processed as a unified transcript stream.
+1. **Narrative Grounding**: Free-text sections (`chiefComplaint`, `adviceDetails`) rely on token overlap and model self-reporting; they are not deterministically verifiable like numeric degrees.
+2. **Medical Eponyms**: Standard Whisper models may occasionally mishear unfamiliar orthopaedic terms or surgeon names. Initial prompt hints mitigate this.
+3. **Speaker Diarization**: Multi-speaker conversations are transcribed as a single interleaved stream.
