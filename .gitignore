@@ -13,7 +13,7 @@ htmlcov/
 *.pid
 
 # Environment Variables
-.env
+!.env
 !.env.example
 
 # Node / Frontend

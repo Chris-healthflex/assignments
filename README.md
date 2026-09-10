@@ -70,14 +70,54 @@ Once started:
 
 ---
 
+### Environment Configuration (`.env`)
+
+A pre-configured [`.env`](file:///d:/stance_health/.env) file is committed at the project root with empty credential values. Choose your preferred LLM provider and configure its settings:
+
+#### 1. Google Gemini (Default / Recommended Cloud)
+```ini
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+#### 2. Local Ollama (100% Offline & Private, Zero API Keys)
+Run completely offline on your own machine without making external API calls:
+```ini
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3:latest
+```
+
+#### 3. OpenAI
+```ini
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-openai-key-here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+#### 4. Anthropic
+```ini
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+ANTHROPIC_MODEL=claude-3-haiku-20240307
+```
+
+#### Core Pipeline & Database Knobs
+| Variable | Default | Purpose |
+|---|---|---|
+| `CONFIDENCE_THRESHOLD` | `0.70` | Acceptance gate for overall session confidence; ungrounded clinical values drop confidence $\le 0.35$. |
+| `WHISPER_MODEL` | `base` | Local Whisper model size (`tiny`, `base`, `small`, `medium`). Runs 100% locally. |
+| `MONGODB_URL` | `mongodb://localhost:27017` | MongoDB connection string (set automatically to `mongodb://mongo:27017` under Docker Compose). |
+
+---
+
 ### Option A: One-Command Docker Compose
 
 Run the full stack (FastAPI backend on `:8000` + MongoDB on `:27017` + pre-cached Whisper model):
 
 ```bash
-# 1. Copy env file and provide your LLM API key
-cp .env.example .env
-# Edit .env and supply GEMINI_API_KEY (or OPENAI_API_KEY)
+# 1. Edit .env and supply your LLM API key (or leave as ollama for local inference)
 
 # 2. Build and launch
 docker compose up --build
