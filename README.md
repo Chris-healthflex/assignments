@@ -26,9 +26,24 @@ flowchart LR
 
 The transcription stage sits **outside** the LangGraph graph: transcription is a deterministic, single-shot transformation with no branching or retries worth modeling as graph state. The graph begins once text is available to reason over (`extract → ground → normalize → audit`).
 
+### Service Breakdown & Roles
+
+| Service | Port | Technology | Primary Responsibility |
+|---|---|---|---|
+| **`app` (Backend API)** | `8000` | FastAPI, Whisper, LangGraph, Pydantic v2 | • Sniffs WAV header & resamples to 16 kHz mono (no ffmpeg).<br>• Runs Whisper speech-to-text transcription.<br>• Executes LangGraph clinical extraction (`01`–`06`).<br>• Hard-caps ungrounded numeric/date scores ($\le 0.35$).<br>• Enforces byte-for-byte `FirstAssessment` JSON contract. |
+| **`mongo` (Database)** | `27017` | MongoDB 7.0 | • Stores persisted `AssessmentRecord` documents with audit reports.<br>• Supports paginated and date-range filtered clinical history.<br>• *Note: Audio parsing (`/assessments/parse`) runs standalone without MongoDB.* |
+| **`frontend` (Review UI)** | `3000` | React 18, Vite, TypeScript, Lucide | • Clinical review interface for doctors and physiotherapists.<br>• In-browser WAV waveform visualizer.<br>• Side-by-side clinical narrative and transcript evidence margin rail.<br>• Validates strict contract consumption in a real client application. |
+
 ---
 
 ## 2. Quickstart & Lifecycle Scripts
+
+> [!NOTE]
+> **Why Docker vs. Local Mode & Execution Time Expectations**
+> - **Why Docker?** Provides zero-setup MongoDB and an identical Linux environment with all C audio dependencies (`libsndfile1`) pre-configured.
+> - **Initial Build Duration (3–5 min)**: The first `docker compose up --build` downloads ~2.5 GB of assets (PyTorch ~900 MB, Whisper neural net weights ~140 MB, MongoDB image ~700 MB). Subsequent starts use cached layers and boot instantly.
+> - **Local Fast Path (5 sec)**: If you already have Python 3.10 and Node.js on your machine, **Option B (Local Setup)** bypasses container building and launches in seconds.
+> - **Audio Inference Time (20–45 sec)**: Transcribing a full 4.5-minute clinical session (`clinical_assessment.wav`) on CPU naturally takes 20–45s before LangGraph extraction begins.
 
 Cross-platform lifecycle scripts are provided at the repository root:
 
