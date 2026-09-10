@@ -86,12 +86,32 @@ def get_llm():
             temperature=0.0,
         )
     elif provider == "ollama":
-        from langchain_community.chat_models import ChatOllama
-        return ChatOllama(
-            base_url=settings.OLLAMA_BASE_URL,
-            model=settings.OLLAMA_MODEL,
-            temperature=0.0,
-        )
+        try:
+            from langchain_ollama import ChatOllama
+            return ChatOllama(
+                base_url=settings.OLLAMA_BASE_URL,
+                model=settings.OLLAMA_MODEL,
+                temperature=0.0,
+            )
+        except ImportError:
+            try:
+                from langchain_community.chat_models import ChatOllama
+                return ChatOllama(
+                    base_url=settings.OLLAMA_BASE_URL,
+                    model=settings.OLLAMA_MODEL,
+                    temperature=0.0,
+                )
+            except ImportError:
+                from langchain_openai import ChatOpenAI
+                base_url = settings.OLLAMA_BASE_URL.rstrip("/")
+                if not base_url.endswith("/v1"):
+                    base_url = f"{base_url}/v1"
+                return ChatOpenAI(
+                    base_url=base_url,
+                    api_key="ollama",
+                    model=settings.OLLAMA_MODEL,
+                    temperature=0.0,
+                )
     else:
         # Fallback to OpenAI if key exists, or Gemini if key exists
         if settings.OPENAI_API_KEY:
