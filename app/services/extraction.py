@@ -112,6 +112,53 @@ def extract_node(state: AgentState) -> Dict[str, Any]:
     if not transcript:
         raise ValueError("Cannot extract from empty transcript.")
 
+    provider = (settings.LLM_PROVIDER or "").lower()
+
+    if provider == "gemini":
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY is not set. Please provide it in .env or environment.")
+        from google import genai
+
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        prompt = (
+            f"{EXTRACTION_SYSTEM_PROMPT}\n\n"
+            f"Clinical Transcript:\n{transcript}\n\n"
+            f"Respond ONLY with a valid JSON object matching the 7 sections of FirstAssessment plus field_scores."
+        )
+
+        model_name = settings.GEMINI_MODEL or "gemini-3.8-flash"
+        try:
+            resp = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+        except Exception:
+            resp = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+
+        data = json.loads(resp.text)
+        draft = {
+            "clinicalDetails": data.get("clinicalDetails") or {},
+            "subjectiveAssessments": data.get("subjectiveAssessments") or [],
+            "objectiveAssessment": data.get("objectiveAssessment") or {"tests": []},
+            "subjectiveGoals": data.get("subjectiveGoals") or [],
+            "objectiveGoals": data.get("objectiveGoals") or [],
+            "recommendation": data.get("recommendation") or [],
+            "patientAdvice": data.get("patientAdvice") or {},
+        }
+        raw_scores = data.get("field_scores") or []
+
+        return {
+            **state,
+            "draft": draft,
+            "raw_scores": raw_scores,
+        }
+
+    # For OpenAI, Anthropic, or Ollama via LangChain
     llm = get_llm()
     structured_llm = llm.with_structured_output(ExtractionOutput)
 

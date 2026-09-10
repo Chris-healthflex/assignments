@@ -1,21 +1,13 @@
 {
   "clinicalDetails": {
-    "clinicalHistory": "Patient was involved in a road traffic accident eight months ago resulting in a left tibial condylar fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by 4 to 6 weeks of non-weight bearing and subsequent progressive loading. Despite eight months having passed, the patient has not returned to full functional activity.",
-    "chiefComplaint": "Left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery",
+    "clinicalHistory": "Eight months ago, patient was involved in a road traffic accident resulting in a left tibial condylar fracture and an avulsion ACL tear. Open reduction internal fixation was performed by Dr. Hemant Kalyan, followed by 4 to 6 weeks of non-weight bearing and progressive loading. Provisional diagnosis: left tibial condyle fracture, status post-operative 8 months.",
+    "chiefComplaint": "Left knee pain, difficulty performing functional activities, and difficulty walking along with ankle and back pain during prolonged walking following surgery.",
     "duration": "8 months"
   },
   "subjectiveAssessments": [
     {
-      "testName": "Knee Flexion Overpressure",
-      "conclusion": "Restricted and painful knee flexion on overpressure"
-    },
-    {
-      "testName": "Patellar Mobility",
-      "conclusion": "Patellar mobility was good"
-    },
-    {
-      "testName": "Hip Range of Motion",
-      "conclusion": "Generally full and pain free although left hip extension was restricted"
+      "testName": "Pain and Irritability",
+      "conclusion": "Moderate pain with mild irritability particularly during prolonged walking and standing, relieved with rest."
     }
   ],
   "objectiveAssessment": {
@@ -26,7 +18,7 @@
         "value": "",
         "left": "124",
         "right": "130",
-        "comments": "Restricted and painful on left"
+        "comments": "Restricted and painful knee flexion on overpressure"
       },
       {
         "testName": "Knee Extension",
@@ -34,23 +26,23 @@
         "value": "",
         "left": "20",
         "right": "-5",
-        "comments": "Restricted extension on left"
+        "comments": "Restricted extension"
       },
       {
         "testName": "Hip Internal Rotation",
         "unitName": "degrees",
-        "value": "45",
+        "value": "",
         "left": "45",
         "right": "45",
-        "comments": "Bilaterally 45 degrees"
+        "comments": ""
       },
       {
         "testName": "Hip External Rotation",
         "unitName": "degrees",
-        "value": "60",
+        "value": "",
         "left": "60",
         "right": "60",
-        "comments": "Bilaterally 60 degrees"
+        "comments": ""
       },
       {
         "testName": "Ankle Dorsiflexion",
@@ -58,39 +50,19 @@
         "value": "",
         "left": "4.5",
         "right": "12",
-        "comments": "Restricted on left"
+        "comments": ""
       }
     ]
   },
-  "subjectiveGoals": [
-    {
-      "goalDetails": "Return to full functional activity and prolonged walking without pain",
-      "targetDate": ""
-    }
-  ],
-  "objectiveGoals": [
-    {
-      "goalName": "Knee Extension",
-      "goalCategory": "Range of Motion",
-      "unitName": "degrees",
-      "value": "0",
-      "targetDate": ""
-    },
-    {
-      "goalName": "Single Leg Stability and Quadriceps Strength",
-      "goalCategory": "Stability",
-      "unitName": "",
-      "value": "",
-      "targetDate": ""
-    }
-  ],
+  "subjectiveGoals": [],
+  "objectiveGoals": [],
   "recommendation": [
     {
       "sessionType": "Physiotherapy",
-      "sessionFrequency": "Once weekly for four sessions"
+      "sessionFrequency": "once weekly for four sessions"
     }
   ],
   "patientAdvice": {
-    "adviceDetails": "Restoring extension, improving stability and single leg stability, strengthening quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain."
+    "adviceDetails": "Emphasis on restoring extension, improving stability and single leg stability, strengthening quadriceps and functional lower limb musculature, improving ankle mobility, and activating the posterior chain."
   }
 }

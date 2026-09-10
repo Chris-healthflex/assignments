@@ -14,8 +14,8 @@ if [ ! -f .env ]; then
   fi
 fi
 
-# 2. Check if Docker is available
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+# 2. Check if Docker is available and daemon is running
+if command -v docker >/dev/null 2>&1 && docker ps >/dev/null 2>&1; then
   echo "[*] Docker daemon detected. Launching full stack via Docker Compose..."
   docker compose up -d --build
 
@@ -42,12 +42,16 @@ else
   echo "[!] Docker is not running or not installed. Starting in local mode..."
 
   # Check python venv
-  if [ -d ".venv" ]; then
-    source .venv/Scripts/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+  PY_BIN=".venv/Scripts/python.exe"
+  if [ ! -f "$PY_BIN" ]; then
+    PY_BIN=".venv/bin/python"
+  fi
+  if [ ! -f "$PY_BIN" ]; then
+    PY_BIN="python"
   fi
 
-  echo "[*] Starting FastAPI app via uvicorn in background..."
-  python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+  echo "[*] Starting FastAPI app via uvicorn in background using $PY_BIN..."
+  nohup "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
   API_PID=$!
   echo $API_PID > .api.pid
   echo "[+] Backend running (PID $API_PID) at http://localhost:8000"
@@ -58,7 +62,7 @@ else
     if [ ! -d "node_modules" ]; then
       npm install
     fi
-    npm run dev -- --host &
+    nohup npm run dev -- --host --port 3000 > ../vite.log 2>&1 &
     FRONT_PID=$!
     echo $FRONT_PID > ../.frontend.pid
     echo "[+] Frontend running (PID $FRONT_PID) at http://localhost:3000"

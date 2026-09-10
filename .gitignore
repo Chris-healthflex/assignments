@@ -9,6 +9,8 @@ env/
 *.egg-info/
 .coverage
 htmlcov/
+*.log
+*.pid
 
 # Environment Variables
 .env
