@@ -115,11 +115,16 @@ def extract_node(state: AgentState) -> Dict[str, Any]:
     provider = (settings.LLM_PROVIDER or "").lower()
 
     if provider == "gemini":
-        if not settings.GEMINI_API_KEY:
+        import os
+        from dotenv import dotenv_values
+        gemini_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
+        if not gemini_key and os.path.exists(".env"):
+            gemini_key = dotenv_values(".env").get("GEMINI_API_KEY")
+        if not gemini_key:
             raise ValueError("GEMINI_API_KEY is not set. Please provide it in .env or environment.")
         from google import genai
 
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        client = genai.Client(api_key=gemini_key)
         prompt = (
             f"{EXTRACTION_SYSTEM_PROMPT}\n\n"
             f"Clinical Transcript:\n{transcript}\n\n"
