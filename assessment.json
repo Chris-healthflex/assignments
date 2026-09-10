@@ -1,0 +1,119 @@
+{
+  "clinicalDetails": {
+    "clinicalHistory": "The patient was apparently normal eight months ago when she was involved in a road traffic accident resulting in a left tibial condle fracture and an avulsion ACL tear. Open reduction and internal fixation was performed by Dr. Hemant Kalyan, followed by four to six weeks of non-weight bearing and subsequent progressive loading.",
+    "chiefComplaint": "left knee pain, difficulty performing functional activities and difficulty walking along with ankle and back pain during prolonged walking following surgery",
+    "duration": "eight months"
+  },
+  "subjectiveAssessments": [
+    {
+      "testName": "Pain",
+      "conclusion": "moderate pain with mild irritability particularly during prolonged walking and standing, which is relieved with rest"
+    }
+  ],
+  "objectiveAssessment": {
+    "tests": [
+      {
+        "testName": "Surgical scar",
+        "unitName": "",
+        "value": "",
+        "left": "",
+        "right": "",
+        "comments": "healed surgical scar on the medial aspect of the knee"
+      },
+      {
+        "testName": "Knee flexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "124",
+        "right": "130",
+        "comments": "restricted and painful knee flexion on overpressure"
+      },
+      {
+        "testName": "Knee extension",
+        "unitName": "degrees",
+        "value": "",
+        "left": "20",
+        "right": "negative five degrees",
+        "comments": "restricted extension and swelling"
+      },
+      {
+        "testName": "Hip internal rotation",
+        "unitName": "degrees",
+        "value": "45",
+        "left": "45",
+        "right": "45",
+        "comments": ""
+      },
+      {
+        "testName": "Hip external rotation",
+        "unitName": "degrees",
+        "value": "60",
+        "left": "60",
+        "right": "60",
+        "comments": ""
+      },
+      {
+        "testName": "Ankle dorsiflexion",
+        "unitName": "degrees",
+        "value": "",
+        "left": "4.5",
+        "right": "12",
+        "comments": ""
+      }
+    ]
+  },
+  "subjectiveGoals": [],
+  "objectiveGoals": [
+    {
+      "goalName": "restoring knee extension",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "improving knee stability",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "single leg stability",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "strengthening the quadriceps and functional lower limb musculature",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "improving ankle mobility",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    },
+    {
+      "goalName": "activating the posterior chain",
+      "goalCategory": "",
+      "unitName": "",
+      "value": "",
+      "targetDate": ""
+    }
+  ],
+  "recommendation": [
+    {
+      "sessionType": "Physiotherapy",
+      "sessionFrequency": "once weekly for four sessions"
+    }
+  ],
+  "patientAdvice": {
+    "adviceDetails": ""
+  }
+}
