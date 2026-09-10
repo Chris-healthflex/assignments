@@ -28,7 +28,14 @@ The transcription stage sits **outside** the LangGraph graph: transcription is a
 
 ---
 
-## 2. Quickstart & Setup
+## 2. Quickstart & Lifecycle Scripts
+
+Three scripts are provided at the repository root:
+```bash
+./start.sh   # Automatically launches the full stack (Docker Compose or local fallback) and frontend UI
+./stop.sh    # Gracefully shuts down all running containers, API, and frontend processes
+./clean.sh   # Cleans containers, persistent DB volumes, Python cache files, and build artifacts
+```
 
 ### Option A: One-Command Docker Compose (Recommended)
 
