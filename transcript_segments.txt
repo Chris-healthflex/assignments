@@ -1,0 +1,24 @@
+[0.00 - 5.28] The patient presented with left knee pain, difficulty performing functional activities and difficulty
+[5.28 - 9.88] walking along with ankle and back pain during prolonged walking following surgery.
+[9.88 - 14.64] The patient was apparently normal eight months ago when she was involved in a road traffic
+[14.64 - 20.04] accident resulting in a left tibial condal fracture and an evulsion ACL tear.
+[20.04 - 25.28] Open reduction in internal fixation was performed by Dr. Hemant Galyan, followed by four to
+[25.28 - 29.20] six weeks of non-weight bearing and subsequent progressive loading.
+[29.20 - 34.04] Despite eight months having passed, the patient has not returned to full functional activity
+[34.04 - 36.52] and presented for further management.
+[36.52 - 40.92] She reports moderate pain with mild irritability particularly during prolonged walking and
+[40.92 - 43.44] standing, which is relieved with rest.
+[43.44 - 48.20] On assessment, a healed surgical scar was noted on the medial aspect of the knee, with
+[48.20 - 53.60] restricted and painful knee flexion on overpressure, restricted extension and swelling.
+[53.60 - 57.92] Butella mobility was good, while hip range of motion was generally full and pain free
+[58.00 - 61.12] although left hip extension was restricted.
+[61.12 - 66.32] Objective measurements showed left knee flexion of 124 degrees compared with 130 degrees
+[66.32 - 72.04] on the right, left knee extension of 20 degrees compared with negic 5 degrees on the right,
+[72.04 - 78.16] hip internal rotation of 45 degrees bilaterally, hip external rotation of 60 degrees bilaterally
+[78.16 - 83.84] and ankle dose of flexion of 4.5 degrees on the left compared with 12 degrees on the right.
+[83.84 - 88.56] The provisional diagnosis was a left to be all condolose fracture, status postoperative
+[88.56 - 89.92] eight months.
+[89.92 - 94.32] Physiotherapy was recommended once weekly for four sessions, with emphasis on restoring
+[94.32 - 99.48] the extension, improving the stability and single leg stability, strengthening the quadriceps
+[99.48 - 104.96] and functional lower limb musculature, improving ankle mobility, and activating the posterior
+[104.96 - 105.48] chain.

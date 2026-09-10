@@ -1,0 +1,661 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Stance Health Clinical Assessment Pipeline",
+    "description": "WAV-to-structured-JSON clinical assessment form filler with deterministic grounding and confidence fusion.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assessments/parse": {
+      "post": {
+        "summary": "Parse Assessment Audio",
+        "description": "Parses an uploaded WAV audio file into a strict FirstAssessment JSON object.\nConfidence data and latency metrics are strictly delivered via HTTP headers.",
+        "operationId": "parse_assessment_audio_assessments_parse_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_parse_assessment_audio_assessments_parse_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Strict FirstAssessment JSON response body without extra keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstAssessment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or non-WAV audio file"
+          },
+          "422": {
+            "description": "Confidence below threshold, returning ConfidenceReport with flags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfidenceReport"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Transcription or LLM extraction failure"
+          }
+        }
+      }
+    },
+    "/assessments": {
+      "post": {
+        "summary": "Save Assessment",
+        "description": "Saves a validated FirstAssessment into MongoDB and returns an AssessmentRecord.",
+        "operationId": "save_assessment_assessments_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirstAssessment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Assessments",
+        "description": "Lists saved assessments with pagination and optional date-range filtering.",
+        "operationId": "list_assessments_assessments_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO datetime string start",
+              "title": "From"
+            },
+            "description": "ISO datetime string start"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO datetime string end",
+              "title": "To"
+            },
+            "description": "ISO datetime string end"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assessments/{assessment_id}": {
+      "get": {
+        "summary": "Get Assessment",
+        "description": "Retrieves an AssessmentRecord by ID.",
+        "operationId": "get_assessment_assessments__assessment_id__get",
+        "parameters": [
+          {
+            "name": "assessment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assessment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssessmentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssessmentRecord"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "skip": {
+            "type": "integer",
+            "title": "Skip"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "skip"
+        ],
+        "title": "AssessmentListResponse",
+        "description": "Paginated response for GET /assessments."
+      },
+      "AssessmentRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "assessment": {
+            "$ref": "#/components/schemas/FirstAssessment"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "createdAt",
+          "assessment"
+        ],
+        "title": "AssessmentRecord",
+        "description": "Returned by GET /assessments/{id} and POST /assessments: a wrapper, not the raw contract."
+      },
+      "Body_parse_assessment_audio_assessments_parse_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_parse_assessment_audio_assessments_parse_post"
+      },
+      "ClinicalDetails": {
+        "properties": {
+          "clinicalHistory": {
+            "type": "string",
+            "title": "Clinicalhistory",
+            "default": ""
+          },
+          "chiefComplaint": {
+            "type": "string",
+            "title": "Chiefcomplaint",
+            "default": ""
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ClinicalDetails"
+      },
+      "ConfidenceReport": {
+        "properties": {
+          "overall": {
+            "type": "number",
+            "title": "Overall"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FieldEvidence"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall",
+          "threshold",
+          "passed"
+        ],
+        "title": "ConfidenceReport"
+      },
+      "FieldEvidence": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "llm_confidence": {
+            "type": "number",
+            "title": "Llm Confidence"
+          },
+          "grounded": {
+            "type": "boolean",
+            "title": "Grounded"
+          },
+          "evidence_span": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Span"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "confidence",
+          "llm_confidence",
+          "grounded"
+        ],
+        "title": "FieldEvidence"
+      },
+      "FirstAssessment": {
+        "properties": {
+          "clinicalDetails": {
+            "$ref": "#/components/schemas/ClinicalDetails"
+          },
+          "subjectiveAssessments": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectiveAssessment"
+            },
+            "type": "array",
+            "title": "Subjectiveassessments"
+          },
+          "objectiveAssessment": {
+            "$ref": "#/components/schemas/ObjectiveAssessment"
+          },
+          "subjectiveGoals": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectiveGoal"
+            },
+            "type": "array",
+            "title": "Subjectivegoals"
+          },
+          "objectiveGoals": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectiveGoal"
+            },
+            "type": "array",
+            "title": "Objectivegoals"
+          },
+          "recommendation": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "type": "array",
+            "title": "Recommendation"
+          },
+          "patientAdvice": {
+            "$ref": "#/components/schemas/PatientAdvice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FirstAssessment"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ObjectiveAssessment": {
+        "properties": {
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectiveTest"
+            },
+            "type": "array",
+            "title": "Tests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ObjectiveAssessment"
+      },
+      "ObjectiveGoal": {
+        "properties": {
+          "goalName": {
+            "type": "string",
+            "title": "Goalname",
+            "default": ""
+          },
+          "goalCategory": {
+            "type": "string",
+            "title": "Goalcategory",
+            "default": ""
+          },
+          "unitName": {
+            "type": "string",
+            "title": "Unitname",
+            "default": ""
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "default": ""
+          },
+          "targetDate": {
+            "type": "string",
+            "title": "Targetdate",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ObjectiveGoal"
+      },
+      "ObjectiveTest": {
+        "properties": {
+          "testName": {
+            "type": "string",
+            "title": "Testname",
+            "default": ""
+          },
+          "unitName": {
+            "type": "string",
+            "title": "Unitname",
+            "default": ""
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "default": ""
+          },
+          "left": {
+            "type": "string",
+            "title": "Left",
+            "default": ""
+          },
+          "right": {
+            "type": "string",
+            "title": "Right",
+            "default": ""
+          },
+          "comments": {
+            "type": "string",
+            "title": "Comments",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ObjectiveTest"
+      },
+      "PatientAdvice": {
+        "properties": {
+          "adviceDetails": {
+            "type": "string",
+            "title": "Advicedetails",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PatientAdvice"
+      },
+      "Recommendation": {
+        "properties": {
+          "sessionType": {
+            "type": "string",
+            "title": "Sessiontype",
+            "default": ""
+          },
+          "sessionFrequency": {
+            "type": "string",
+            "title": "Sessionfrequency",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Recommendation"
+      },
+      "SubjectiveAssessment": {
+        "properties": {
+          "testName": {
+            "type": "string",
+            "title": "Testname",
+            "default": ""
+          },
+          "conclusion": {
+            "type": "string",
+            "title": "Conclusion",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SubjectiveAssessment"
+      },
+      "SubjectiveGoal": {
+        "properties": {
+          "goalDetails": {
+            "type": "string",
+            "title": "Goaldetails",
+            "default": ""
+          },
+          "targetDate": {
+            "type": "string",
+            "title": "Targetdate",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SubjectiveGoal"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

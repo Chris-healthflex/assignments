@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    container_name: stance_assessment_app
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017
+      - DATABASE_NAME=stance_health
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: stance_assessment_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
