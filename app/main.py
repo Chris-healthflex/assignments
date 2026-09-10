@@ -21,14 +21,16 @@ from app.services.extraction import build_pipeline_graph
 logger = logging.getLogger(__name__)
 
 
+import asyncio
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     try:
-        await init_db()
+        await asyncio.wait_for(init_db(), timeout=2.0)
         logger.info("Connected to MongoDB successfully.")
     except Exception as exc:
-        logger.warning("MongoDB connection failed at startup (%s). Ensure MongoDB is running.", exc)
+        logger.warning("MongoDB connection skipped at startup (%s). Ensure MongoDB is running for persistence.", exc)
     yield
     # Shutdown
     await close_db()
@@ -63,6 +65,23 @@ def get_pipeline():
     if _pipeline_graph is None:
         _pipeline_graph = build_pipeline_graph()
     return _pipeline_graph
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": "Stance Health Clinical Assessment Pipeline",
+        "status": "online",
+        "docs": "http://localhost:8000/docs",
+        "frontend": "http://localhost:3000",
+        "endpoints": [
+            "POST /assessments/parse",
+            "POST /assessments",
+            "GET /assessments/{id}",
+            "GET /assessments",
+            "GET /health",
+        ],
+    }
 
 
 @app.get("/health")

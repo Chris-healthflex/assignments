@@ -30,14 +30,30 @@ The transcription stage sits **outside** the LangGraph graph: transcription is a
 
 ## 2. Quickstart & Lifecycle Scripts
 
-Three scripts are provided at the repository root:
-```bash
-./start.sh   # Automatically launches the full stack (Docker Compose or local fallback) and frontend UI
-./stop.sh    # Gracefully shuts down all running containers, API, and frontend processes
-./clean.sh   # Cleans containers, persistent DB volumes, Python cache files, and build artifacts
-```
+Cross-platform lifecycle scripts are provided at the repository root:
 
-### Option A: One-Command Docker Compose (Recommended)
+| Environment | Start | Stop | Clean |
+|---|---|---|---|
+| **Linux / macOS** | `./start.sh` | `./stop.sh` | `./clean.sh` |
+| **Windows (PowerShell)** | `.\start.ps1` | `.\stop.ps1` | `.\clean.ps1` |
+| **Windows (CMD)** | `start.bat` | `stop.bat` | `clean.bat` |
+
+**What the start script does:**
+1. Checks for `.env` and initializes it from `.env.example` if missing.
+2. Checks if the Docker daemon is running:
+   - **Docker Active**: Automatically builds and boots the full stack (FastAPI backend + MongoDB) via `docker compose up -d --build`.
+   - **Docker Inactive**: Falls back to running FastAPI backend locally via `uvicorn` on port `8000` (with non-blocking, graceful fallback if local MongoDB is not running).
+3. Installs frontend dependencies (if `node_modules` missing) and launches the React Vite frontend on port `3000`.
+
+Once started:
+- **Frontend UI**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **System Status**: [http://localhost:8000/](http://localhost:8000/)
+
+---
+
+### Option A: One-Command Docker Compose
 
 Run the full stack (FastAPI backend on `:8000` + MongoDB on `:27017` + pre-cached Whisper model):
 
@@ -49,15 +65,19 @@ cp .env.example .env
 # 2. Build and launch
 docker compose up --build
 ```
+Then start the frontend in a separate terminal:
+```bash
+cd frontend && npm install && npm run dev
+```
 
 ### Option B: Local Setup
 
 1. **Backend**:
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate       # On Windows: .\.venv\Scripts\activate
    pip install -r requirements.txt
-   cp .env.example .env
+   cp .env.example .env            # On Windows: copy .env.example .env
 
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
@@ -88,13 +108,14 @@ Exit code is `0` if all confidence checks pass; `2` if any numeric/date field fa
 
 | Endpoint | Method | Status | Description |
 |---|---|---|---|
+| `/` | `GET` | `200` | System status, service links, and registered endpoint catalogue. |
+| `/health` | `GET` | `200` | Liveness check returning system timestamp. |
 | `/assessments/parse` | `POST` (multipart `file`) | `200` | Returns **bare** `FirstAssessment` JSON (strict contract, no extra fields). Confidence and latency are delivered via headers: `X-Extraction-Confidence`, `X-Extraction-Model`, `X-Pipeline-Latency-Ms`. |
 | `/assessments/parse` | `POST` (multipart `file`) | `400` | Invalid or corrupt WAV file rejected at audio guard before Whisper. |
 | `/assessments/parse` | `POST` (multipart `file`) | `422` | Extraction confidence below threshold. Returns `ConfidenceReport` with ungrounded flags. |
 | `/assessments` | `POST` (JSON body) | `201` | Persists a `FirstAssessment` to MongoDB, returning an `AssessmentRecord` wrapper. |
 | `/assessments/{id}` | `GET` | `200` | Retrieves stored `AssessmentRecord` (including audit report and timestamp). Returns `404` if not found. |
 | `/assessments` | `GET` (`?from=&to=&limit=20&skip=0`) | `200` | Paginated assessment registry (`{items: [...], total, limit, skip}`). Supports ISO date filtering. |
-| `/health` | `GET` | `200` | Liveness check returning system timestamp. |
 
 ---
 
@@ -126,15 +147,15 @@ The assignment brief explicitly highlights that *"our production frontend consum
 ---
 
 ## 6. Test Suite & Verification
-
+ 
 Run the test suite using `pytest`:
-
+ 
 ```bash
 # Contract invariants, grounding logic, and pipeline flow:
-pytest tests/test_schema.py tests/test_grounding.py tests/test_pipeline.py tests/test_api.py -v
-
+python -m pytest tests/test_schema.py tests/test_grounding.py tests/test_pipeline.py tests/test_api.py -v
+ 
 # Live golden-path test on the provided clinical_assessment.wav:
-pytest tests/test_e2e_live.py -v -m "not live"
+python -m pytest tests/test_e2e_live.py -v -m "not live"
 ```
 
 ---
