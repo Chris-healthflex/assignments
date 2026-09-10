@@ -241,13 +241,13 @@ def fuse_confidence(llm_confidence: float, grounded: bool, is_numeric_or_date: b
     return clamped
 ```
 
-$$\text{fused\_confidence} = \begin{cases} \min(\text{llm\_confidence}, 0.35) & \text{if ungrounded numeric or date} \\ \text{llm\_confidence} & \text{otherwise} \end{cases}$$
-
 ### Minimum-Not-Average Aggregation
-Most AI pipelines average confidence across all fields. In physical therapy, averaging is dangerous: five highly confident narrative sentences (e.g. `chiefComplaint`, `adviceDetails` at 0.95) would dilute a completely fabricated knee flexion degree (0.35), producing an average of $(5 \times 0.95 + 0.35) / 6 = 0.85$ (passing).
+Most AI pipelines average confidence across all fields. In physical therapy, averaging is dangerous: five highly confident narrative sentences (e.g. `chiefComplaint`, `adviceDetails` at 0.95) would dilute a completely fabricated knee flexion degree (0.35), producing an average of `(5 * 0.95 + 0.35) / 6 = 0.85` (passing).
 
 In this system:
-$$\text{Overall Confidence} = \min_{f \in \text{fields}}(\text{fused\_confidence}_f)$$
+```python
+overall_confidence = min(field.confidence for field in populated_fields)
+```
 **A single hallucinated clinical measurement fails the entire session.**
 
 ---

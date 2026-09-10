@@ -270,15 +270,22 @@ Every numeric measurement (ROM degrees, pain scores, strengths) and temporal phr
 ### 2. The Capped Fusion Rule
 If an LLM self-reports 0.95 confidence on a measurement that does not appear in the transcript, its confidence is **hard-capped in code**:
 
-$$\text{fused\_confidence} = \begin{cases} \min(\text{llm\_confidence}, 0.35) & \text{if ungrounded numeric/date} \\ \text{llm\_confidence} & \text{otherwise} \end{cases}$$
+```python
+if is_numeric_or_date and not grounded:
+    fused_confidence = min(llm_confidence, 0.35)
+else:
+    fused_confidence = llm_confidence
+```
 
 An ungrounded clinical number cannot pass verification regardless of the prompt.
 
 ### 3. Minimum-Not-Average Aggregation
-Most systems calculate overall confidence by averaging field scores. In physical therapy documentation, averaging is dangerous: five confident narrative fields at 0.95 would wash out a single completely fabricated knee flexion measurement at 0.35, yielding an average of $(5 \times 0.95 + 0.35) / 6 = 0.85$ (passing).
+Most systems calculate overall confidence by averaging field scores. In physical therapy documentation, averaging is dangerous: five confident narrative fields at 0.95 would wash out a single completely fabricated knee flexion measurement at 0.35, yielding an average of `(5 * 0.95 + 0.35) / 6 = 0.85` (passing).
 
 In this system:
-$$\text{Overall Confidence} = \min_{f \in \text{fields}}(\text{fused\_confidence}_f)$$
+```python
+overall_confidence = min(fused_scores) if fused_scores else 1.0
+```
 
 A single ungrounded clinical measurement drops the entire session below the 0.70 acceptance threshold, triggering an `HTTP 422 Unprocessable Entity` with specific field flags.
 
