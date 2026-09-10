@@ -1,0 +1,21 @@
+# Environment and secrets
+.env
+.env.*
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE
+.vscode/
+
+# Generated audio/transcription files
+*.mp3
+*.m4a
+*.flac
