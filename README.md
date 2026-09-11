@@ -147,6 +147,10 @@ The output JSON must **exactly** match this structure. No extra fields, no renam
 
 ## REST API Endpoints
 
+Interactive Swagger UI documentation is available at `http://localhost:8000/docs`:
+
+![Swagger API Documentation](assets/swagger_docs.png)
+
 ### `POST /assessments/parse`
 
 Transcribes a WAV upload and extracts the `FirstAssessment` JSON. Does **not** persist — returns the parsed structure directly.
