@@ -1,4 +1,4 @@
-﻿# Clinical Assessment Voice Form Filler
+# Clinical Assessment Voice Form Filler
 
 > **Turn a clinical audio session into a structured assessment report — automatically.**
 
@@ -7,6 +7,11 @@ A production-ready **FastAPI** microservice that accepts a WAV recording of a re
 ---
 
 ## Pipeline Architecture
+
+![Pipeline Architecture Workflow](assets/architecture_workflow.svg)
+
+<details>
+<summary><b>View ASCII Flow Diagram</b></summary>
 
 ```
 [WAV Upload] --> [WAV Validator] --> [Whisper STT] --> [Transcript]
@@ -32,6 +37,7 @@ A production-ready **FastAPI** microservice that accepts a WAV recording of a re
                                     [MongoDB Atlas]
                                (via POST /assessments)
 ```
+</details>
 
 ---
 

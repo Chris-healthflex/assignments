@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 540" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#090D16"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1F2937" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+
+    <linearGradient id="roseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB7185"/>
+      <stop offset="100%" stop-color="#E11D48"/>
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    
+    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#38BDF8" flood-opacity="0.4"/>
+    </filter>
+
+    <!-- Markers for arrows -->
+    <marker id="arrowCyan" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L7,3 z" fill="#38BDF8"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L7,3 z" fill="#818CF8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L7,3 z" fill="#34D399"/>
+    </marker>
+    <marker id="arrowRose" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L7,3 z" fill="#FB7185"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; fill: #F9FAFB; font-size: 20px; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 400; fill: #9CA3AF; font-size: 13px; }
+    .node-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 14px; fill: #F3F4F6; }
+    .node-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 400; font-size: 11px; fill: #9CA3AF; }
+    .badge-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .group-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px; fill: #A5B4FC; letter-spacing: 0.8px; text-transform: uppercase; }
+  </style>
+
+  <!-- Background Base -->
+  <rect width="1020" height="540" rx="16" fill="url(#bgGrad)" stroke="#1F2937" stroke-width="1.5"/>
+
+  <!-- Top Header Banner -->
+  <g transform="translate(35, 30)">
+    <circle cx="16" cy="16" r="14" fill="#0284C7" fill-opacity="0.2"/>
+    <path d="M12 9v14l11-7z" fill="#38BDF8"/>
+    <text x="42" y="16" class="title">Clinical Assessment Voice Form Filler</text>
+    <text x="42" y="32" class="subtitle">End-to-End Speech-to-Clinical Pipeline Orchestrated with LangGraph &amp; FastAPI</text>
+  </g>
+
+  <!-- Flow Connector Lines -->
+  <!-- Audio -> Whisper -->
+  <path d="M 185 160 L 225 160" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#arrowCyan)"/>
+
+  <!-- Whisper -> LangGraph -->
+  <path d="M 375 160 L 415 160" stroke="#818CF8" stroke-width="2" fill="none" marker-end="url(#arrowPurple)"/>
+
+  <!-- LangGraph internal flow: extract -> normalize -->
+  <path d="M 535 205 L 535 235" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#arrowGreen)"/>
+
+  <!-- normalize -> confidence -->
+  <path d="M 535 295 L 535 325" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#arrowGreen)"/>
+
+  <!-- confidence -> validate -->
+  <path d="M 535 385 L 535 415" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#arrowGreen)"/>
+
+  <!-- validate -> pass (MongoDB / JSON) -->
+  <path d="M 640 445 L 755 445 L 755 240 L 785 240" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#arrowGreen)"/>
+
+  <!-- validate -> reject (HTTP 422) -->
+  <path d="M 640 475 L 755 475 L 785 475" stroke="#FB7185" stroke-width="2" stroke-dasharray="4,4" fill="none" marker-end="url(#arrowRose)"/>
+
+  <!-- JSON -> MongoDB -->
+  <path d="M 885 285 L 885 330" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#arrowCyan)"/>
+
+
+  <!-- 1. AUDIO INPUT & VALIDATION -->
+  <g transform="translate(35, 110)" filter="url(#cardShadow)">
+    <rect width="150" height="110" rx="10" fill="url(#cardGrad)" stroke="#38BDF8" stroke-width="1.2"/>
+    <rect x="12" y="12" width="60" height="18" rx="4" fill="#0284C7" fill-opacity="0.3"/>
+    <text x="18" y="24" class="badge-text" fill="#38BDF8">Input</text>
+    <text x="12" y="52" class="node-title">Audio File (.wav)</text>
+    <text x="12" y="70" class="node-desc">• RIFF/WAVE Validation</text>
+    <text x="12" y="86" class="node-desc">• Binary header check</text>
+    <text x="12" y="102" class="node-desc">• Non-empty byte payload</text>
+  </g>
+
+  <!-- 2. STT TRANSCRIPTION (Whisper) -->
+  <g transform="translate(225, 110)" filter="url(#cardShadow)">
+    <rect width="150" height="110" rx="10" fill="url(#cardGrad)" stroke="#818CF8" stroke-width="1.2"/>
+    <rect x="12" y="12" width="80" height="18" rx="4" fill="#4F46E5" fill-opacity="0.3"/>
+    <text x="18" y="24" class="badge-text" fill="#A5B4FC">Whisper STT</text>
+    <text x="12" y="52" class="node-title">Transcription</text>
+    <text x="12" y="70" class="node-desc">• Groq whisper-large-v3</text>
+    <text x="12" y="86" class="node-desc">• Offline fallback ready</text>
+    <text x="12" y="102" class="node-desc">• Verbatim clinical text</text>
+  </g>
+
+  <!-- 3. LANGGRAPH ORCHESTRATOR CONTAINER -->
+  <g transform="translate(415, 95)">
+    <!-- Container background -->
+    <rect width="250" height="415" rx="14" fill="#0F172A" fill-opacity="0.8" stroke="#4F46E5" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="20" y="26" class="group-title">LangGraph StateGraph</text>
+
+    <!-- Node 1: extract_node -->
+    <g transform="translate(18, 45)">
+      <rect width="214" height="65" rx="8" fill="url(#cardGrad)" stroke="#34D399" stroke-width="1"/>
+      <text x="12" y="22" class="node-title">1. extract_node</text>
+      <text x="12" y="38" class="node-desc">LLM Structured Extraction</text>
+      <text x="12" y="52" class="node-desc">Llama-3.3-70b (3-attempt retry loop)</text>
+    </g>
+
+    <!-- Node 2: normalize_node -->
+    <g transform="translate(18, 135)">
+      <rect width="214" height="65" rx="8" fill="url(#cardGrad)" stroke="#38BDF8" stroke-width="1"/>
+      <text x="12" y="22" class="node-title">2. normalize_node</text>
+      <text x="12" y="38" class="node-desc">Pydantic v2 Schema Coercion</text>
+      <text x="12" y="52" class="node-desc">No nulls, ISO dates, vital units</text>
+    </g>
+
+    <!-- Node 3: confidence_node -->
+    <g transform="translate(18, 225)">
+      <rect width="214" height="65" rx="8" fill="url(#cardGrad)" stroke="#FBBF24" stroke-width="1"/>
+      <text x="12" y="22" class="node-title">3. confidence_node</text>
+      <text x="12" y="38" class="node-desc">Field-by-Field Audit Engine</text>
+      <text x="12" y="52" class="node-desc">Completeness &amp; Clinical consistency</text>
+    </g>
+
+    <!-- Node 4: validate_node -->
+    <g transform="translate(18, 315)">
+      <rect width="214" height="75" rx="8" fill="url(#cardGrad)" stroke="#818CF8" stroke-width="1"/>
+      <text x="12" y="22" class="node-title">4. validate_node</text>
+      <text x="12" y="38" class="node-desc">Quality Gatekeeper Filter</text>
+      <text x="12" y="52" class="node-desc">Pass if confidence ≥ 0.70</text>
+      <text x="12" y="66" class="node-desc">Fail if low confidence (&lt; 0.70)</text>
+    </g>
+  </g>
+
+  <!-- 4. SUCCESS & PERSISTENCE PATH -->
+  <!-- Validated FirstAssessment JSON -->
+  <g transform="translate(785, 190)" filter="url(#cardShadow)">
+    <rect width="195" height="95" rx="10" fill="url(#cardGrad)" stroke="#34D399" stroke-width="1.3"/>
+    <rect x="12" y="10" width="85" height="18" rx="4" fill="#059669" fill-opacity="0.3"/>
+    <text x="18" y="22" class="badge-text" fill="#34D399">HTTP 200 OK</text>
+    <text x="12" y="48" class="node-title">FirstAssessment JSON</text>
+    <text x="12" y="66" class="node-desc">• Demographics &amp; Vitals</text>
+    <text x="12" y="82" class="node-desc">• Diagnoses, Exams &amp; Care Plan</text>
+  </g>
+
+  <!-- MongoDB Atlas Node -->
+  <g transform="translate(785, 330)" filter="url(#cardShadow)">
+    <rect width="195" height="90" rx="10" fill="url(#cardGrad)" stroke="#38BDF8" stroke-width="1.3"/>
+    <rect x="12" y="10" width="85" height="18" rx="4" fill="#0284C7" fill-opacity="0.3"/>
+    <text x="18" y="22" class="badge-text" fill="#38BDF8">Persistence</text>
+    <text x="12" y="48" class="node-title">MongoDB Atlas</text>
+    <text x="12" y="66" class="node-desc">• POST /assessments (HTTP 201)</text>
+    <text x="12" y="82" class="node-desc">• GET /assessments &amp; query filters</text>
+  </g>
+
+  <!-- 5. REJECTION / 422 PATH -->
+  <g transform="translate(785, 435)" filter="url(#cardShadow)">
+    <rect width="195" height="70" rx="10" fill="url(#cardGrad)" stroke="#FB7185" stroke-width="1.2"/>
+    <rect x="12" y="10" width="95" height="18" rx="4" fill="#E11D48" fill-opacity="0.3"/>
+    <text x="18" y="22" class="badge-text" fill="#FB7185">HTTP 422 Error</text>
+    <text x="12" y="45" class="node-title">Low Confidence Block</text>
+    <text x="12" y="60" class="node-desc">Returns sub-threshold reason &amp; score</text>
+  </g>
+
+</svg>
