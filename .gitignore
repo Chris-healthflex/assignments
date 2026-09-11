@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.pytest_cache/
+.idea/
+.vscode/
+*.log
+*.wav
+*.txt!requirements.txt
+!requirements.txt
+clinical_assessment.txt
